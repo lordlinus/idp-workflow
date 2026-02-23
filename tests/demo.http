@@ -1,0 +1,192 @@
+### IDP Workflow Demo
+### Base URL for local development
+@baseUrl = http://localhost:7071/api
+# @baseUrl = https://idp-workbench.azurewebsites.net/api
+
+### Authentication
+### Get your Host Key from: Azure Portal → Function App → App Keys
+### Or run: az functionapp keys list --name idp-workbench --resource-group idpworkbench --query "masterKey" -o tsv
+@hostKey = O4M4_JY9de14s5Oc7uLpcHSHVbs2X_we98p8psYIv7VgAzFuP-pVNw==
+
+### ========================================================================
+### HEALTH CHECK
+### ========================================================================
+
+### Health check (no auth required)
+GET {{baseUrl}}/health?code={{hostKey}}
+
+### ========================================================================
+### START WORKFLOW
+### ========================================================================
+
+### 1. Start IDP workflow - HOME LOAN document
+### The instanceId will be automatically captured from response
+# @name startWorkflow
+POST {{baseUrl}}/idp/start?code={{hostKey}}
+Content-Type: application/json
+
+{
+    "pdf_path": "./sample_documents/home_loan_zava.pdf",
+    "domain_id": "home_loan"
+}
+
+### 2. Start IDP workflow - INSURANCE CLAIMS document
+POST {{baseUrl}}/idp/start?code={{hostKey}}
+Content-Type: application/json
+
+{
+    "pdf_path": "/home/ssattiraju/projects/experiments/MAFAzFunc/sample_documents/insurance_claims_zava.pdf",
+    "domain_id": "insurance_claims"
+}
+
+### 3. Start IDP workflow - SMALL BUSINESS LENDING document
+POST {{baseUrl}}/idp/start?code={{hostKey}}
+Content-Type: application/json
+
+{
+    "pdf_path": "./sample_documents/small_business_lending_zava.pdf",
+    "domain_id": "small_business_lending"
+}
+
+### ========================================================================
+### SIGNALR CONNECTION (For Real-Time Updates)
+### ========================================================================
+### Note: SignalR negotiation is typically done from frontend JavaScript
+### Use the IDP Workflow Monitor frontend app for real-time updates
+
+### Negotiate SignalR connection (returns connection info)
+POST {{baseUrl}}/idp/negotiate?code={{hostKey}}
+
+### Subscribe to workflow updates (join SignalR group)
+### Automatically uses instanceId from the workflow start response
+@instanceId = {{startWorkflow.response.body.$.instanceId}}
+POST {{baseUrl}}/idp/subscribe/{{instanceId}}?code={{hostKey}}
+Content-Type: application/json
+
+{}
+
+### Unsubscribe from workflow updates (leave SignalR group)
+POST {{baseUrl}}/idp/unsubscribe/{{instanceId}}?code={{hostKey}}
+Content-Type: application/json
+
+{}
+
+### ========================================================================
+### HUMAN-IN-THE-LOOP (HITL) REVIEW
+### ========================================================================
+### Use these after receiving a "hitlWaiting" event via SignalR
+### The event will contain field comparisons with Azure and DSPy values
+
+### Submit HITL Review - APPROVE with field selections
+### Use this when you want to approve and select specific field values
+POST {{baseUrl}}/idp/hitl/review/{{instanceId}}?code={{hostKey}}
+Content-Type: application/json
+
+{
+    "approved": true,
+    "feedback": "All fields reviewed and approved",
+    "reviewer": "john.doe@example.com",
+    "field_selections": [
+        {
+            "field_name": "downPaymentAmount",
+            "selected_source": "azure",
+            "selected_value": "$50,000",
+            "azure_value": "$50,000",
+            "dspy_value": "$45,000",
+            "notes": "Azure value more accurate"
+        },
+        {
+            "field_name": "appraisedValue",
+            "selected_source": "dspy",
+            "selected_value": "$500,000",
+            "azure_value": "$500,000",
+            "dspy_value": "$500,000",
+            "notes": "Both values match"
+        }
+    ],
+    "accepted_values": {
+        "downPaymentAmount": "$50,000",
+        "appraisedValue": "$500,000"
+    },
+    "default_source": "azure"
+}
+
+### Submit HITL Review - APPROVE (simple approval, use comparison values)
+POST {{baseUrl}}/idp/hitl/review/{{instanceId}}?code={{hostKey}}
+Content-Type: application/json
+
+{
+    "approved": true,
+    "feedback": "Approved after review",
+    "reviewer": "jane.smith@example.com",
+    "field_selections": [],
+    "accepted_values": {},
+    "default_source": "comparison"
+}
+
+### Submit HITL Review - REJECT with feedback
+POST {{baseUrl}}/idp/hitl/review/{{instanceId}}?code={{hostKey}}
+Content-Type: application/json
+
+{
+    "approved": false,
+    "feedback": "Too many discrepancies. Please reprocess the document.",
+    "reviewer": "admin@example.com",
+    "field_selections": [],
+    "accepted_values": {}
+}
+
+### ========================================================================
+### EXAMPLE WORKFLOW
+### ========================================================================
+
+### STEP 1: Start a workflow
+# POST {{baseUrl}}/idp/start
+# Copy the instanceId from response
+
+### STEP 2: Open IDP Workflow Monitor frontend
+# http://localhost:3000 (or your frontend URL)
+# - Click "Connect to SignalR"
+# - Enter the instanceId
+# - Click "Subscribe"
+# - Watch real-time updates as the workflow progresses
+
+### STEP 3: When you receive "hitlWaiting" event:
+# The event will contain:
+# - fieldsForReview: List of field names needing review
+# - fieldComparisons: Array with Azure and DSPy values for each field
+#   Example:
+#   {
+#     "fieldName": "loanAmount",
+#     "azureValue": "$250,000",
+#     "dspyValue": "$250000",
+#     "match": false,
+#     "needsReview": true
+#   }
+# - reviewUrl: The endpoint to POST your review
+
+### STEP 4: Submit your review using one of the HITL endpoints above
+# - Select which value to use (Azure or DSPy) for each field
+# - Provide feedback
+# - Approve or reject
+
+### STEP 5: Watch the workflow continue
+# - Reasoning step will run
+# - reasoningChunk events will stream results
+# - workflowCompleted event will have final results
+
+### ========================================================================
+### TESTING DIFFERENT SCENARIOS
+### ========================================================================
+
+### Scenario 1: Test with matching fields (no HITL needed)
+### If Azure and DSPy extractions match perfectly, workflow skips HITL
+
+### Scenario 2: Test with mismatches (HITL required)
+### When extractions differ, workflow pauses for human review
+
+### Scenario 3: Test timeout behavior
+### Start workflow, wait for HITL, don't respond within timeout period
+
+### Scenario 4: Test rejection workflow
+### Approve with "approved": false to see rejection handling

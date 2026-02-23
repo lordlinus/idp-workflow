@@ -1,0 +1,17 @@
+{
+  "domain_id": "home_loan",
+  "display_name": "Home Loan / Mortgage Processing",
+  "description": "Process mortgage and home loan applications including income verification, property valuation, credit assessments, and compliance documentation.",
+  "icon": "🏠",
+  "stp_confidence_threshold": 0.90,
+  "require_human_review_categories": ["Credit_Report", "Property_Valuation"],
+  "max_processing_pages": 100,
+  "settings": {
+    "currency": "USD",
+    "date_format": "MM/DD/YYYY",
+    "supported_loan_types": ["Conventional", "FHA", "VA", "USDA", "Jumbo"],
+    "max_dti_ratio": 0.43,
+    "min_credit_score": 620,
+    "ltv_threshold": 0.80
+  }
+}

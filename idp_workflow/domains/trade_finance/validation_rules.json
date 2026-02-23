@@ -1,0 +1,138 @@
+[
+  {
+    "name": "required_lc",
+    "description": "Letter of Credit must be present for LC-based transactions",
+    "rule_type": "required_document",
+    "parameters": {
+      "document_type": "Letter_of_Credit"
+    },
+    "severity": "error"
+  },
+  {
+    "name": "required_bl",
+    "description": "Bill of Lading required for shipment",
+    "rule_type": "required_document",
+    "parameters": {
+      "document_type": "Bill_of_Lading"
+    },
+    "severity": "error"
+  },
+  {
+    "name": "required_commercial_invoice",
+    "description": "Commercial Invoice must be present",
+    "rule_type": "required_document",
+    "parameters": {
+      "document_type": "Commercial_Invoice"
+    },
+    "severity": "error"
+  },
+  {
+    "name": "lc_expiry_check",
+    "description": "LC must not be expired at time of document presentation",
+    "rule_type": "date_validation",
+    "parameters": {
+      "field": "expiryDate",
+      "operator": "greater_than",
+      "value": "current_date"
+    },
+    "severity": "error"
+  },
+  {
+    "name": "shipment_date_check",
+    "description": "Shipment date must be on or before latest shipment date",
+    "rule_type": "cross_field",
+    "parameters": {
+      "field1": "shippedOnBoardDate",
+      "field2": "latestShipmentDate",
+      "operator": "less_than_or_equal"
+    },
+    "severity": "error"
+  },
+  {
+    "name": "amount_consistency",
+    "description": "Invoice amount should not exceed LC amount",
+    "rule_type": "cross_field",
+    "parameters": {
+      "field1": "totalInvoiceAmount",
+      "field2": "lcAmount",
+      "operator": "less_than_or_equal"
+    },
+    "severity": "error"
+  },
+  {
+    "name": "beneficiary_consistency",
+    "description": "LC beneficiary should match invoice seller",
+    "rule_type": "cross_document_match",
+    "parameters": {
+      "field1": "beneficiary",
+      "field2": "seller",
+      "match_type": "fuzzy",
+      "threshold": 0.85
+    },
+    "severity": "warning"
+  },
+  {
+    "name": "consignee_consistency",
+    "description": "B/L consignee should match LC requirements",
+    "rule_type": "cross_document_match",
+    "parameters": {
+      "field1": "consignee",
+      "expected_patterns": ["To Order", "To Order of Issuing Bank"]
+    },
+    "severity": "warning"
+  },
+  {
+    "name": "port_consistency",
+    "description": "Ports on B/L should match LC requirements",
+    "rule_type": "cross_document_match",
+    "parameters": {
+      "bl_field": "portOfLoading",
+      "lc_field": "portOfLoading",
+      "match_type": "contains"
+    },
+    "severity": "warning"
+  },
+  {
+    "name": "insurance_coverage",
+    "description": "Insurance value should be at least 110% of CIF value",
+    "rule_type": "calculated_threshold",
+    "parameters": {
+      "field": "insuredValue",
+      "reference_field": "totalInvoiceAmount",
+      "multiplier": 1.10,
+      "operator": "greater_than_or_equal"
+    },
+    "severity": "warning"
+  },
+  {
+    "name": "clean_bl_required",
+    "description": "Bill of Lading must be clean (no adverse clauses)",
+    "rule_type": "text_check",
+    "parameters": {
+      "document_type": "Bill_of_Lading",
+      "prohibited_terms": ["damaged", "leaking", "broken", "stained", "wet"],
+      "check_type": "absence"
+    },
+    "severity": "error"
+  },
+  {
+    "name": "hs_code_validation",
+    "description": "HS codes must be valid format",
+    "rule_type": "format_validation",
+    "parameters": {
+      "field": "hsCode",
+      "pattern": "^\\d{4,10}$"
+    },
+    "severity": "warning"
+  },
+  {
+    "name": "sanctions_country_check",
+    "description": "Check countries against sanctions lists",
+    "rule_type": "external_check",
+    "parameters": {
+      "check_type": "sanctions",
+      "fields_to_check": ["countryOfOrigin", "portOfLoading", "portOfDischarge"]
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,156 @@
+[
+  {
+    "name": "required_application",
+    "description": "Loan application form must be present",
+    "rule_type": "required_document",
+    "parameters": {
+      "document_type": "Loan_Application"
+    },
+    "severity": "error"
+  },
+  {
+    "name": "required_business_tax_returns",
+    "description": "Business tax returns required (minimum 2 years)",
+    "rule_type": "required_document",
+    "parameters": {
+      "document_type": "Business_Tax_Returns",
+      "min_count": 2
+    },
+    "severity": "error"
+  },
+  {
+    "name": "required_financial_statements",
+    "description": "Current financial statements required",
+    "rule_type": "required_document",
+    "parameters": {
+      "document_type": "Financial_Statement"
+    },
+    "severity": "error"
+  },
+  {
+    "name": "required_bank_statements",
+    "description": "Bank statements required (minimum 3 months)",
+    "rule_type": "required_document",
+    "parameters": {
+      "document_type": "Bank_Statements",
+      "min_count": 3
+    },
+    "severity": "error"
+  },
+  {
+    "name": "business_age_check",
+    "description": "Business must be at least 24 months old",
+    "rule_type": "date_validation",
+    "parameters": {
+      "field": "dateEstablished",
+      "min_age_months": 24
+    },
+    "severity": "warning"
+  },
+  {
+    "name": "credit_score_minimum",
+    "description": "Owner credit score must meet minimum threshold",
+    "rule_type": "array_field_threshold",
+    "parameters": {
+      "array_field": "owners",
+      "field": "creditScore",
+      "operator": "greater_than_or_equal",
+      "value": 650,
+      "check_type": "any"
+    },
+    "severity": "warning"
+  },
+  {
+    "name": "dscr_calculation",
+    "description": "Debt Service Coverage Ratio must be at least 1.25",
+    "rule_type": "calculated_ratio",
+    "parameters": {
+      "numerator_formula": "ebitda",
+      "denominator_formula": "totalMonthlyDebtService * 12",
+      "operator": "greater_than_or_equal",
+      "value": 1.25
+    },
+    "severity": "warning"
+  },
+  {
+    "name": "current_ratio_check",
+    "description": "Current ratio should be at least 1.0",
+    "rule_type": "calculated_ratio",
+    "parameters": {
+      "numerator_field": "currentAssets",
+      "denominator_field": "currentLiabilities",
+      "operator": "greater_than_or_equal",
+      "value": 1.0
+    },
+    "severity": "warning"
+  },
+  {
+    "name": "loan_amount_limit",
+    "description": "Loan amount cannot exceed program limits",
+    "rule_type": "threshold",
+    "parameters": {
+      "field": "loanAmountRequested",
+      "operator": "less_than_or_equal",
+      "value": 5000000
+    },
+    "severity": "error"
+  },
+  {
+    "name": "collateral_required",
+    "description": "Collateral required for loans over $350,000",
+    "rule_type": "conditional_required",
+    "parameters": {
+      "condition_field": "loanAmountRequested",
+      "condition_operator": "greater_than",
+      "condition_value": 350000,
+      "required_document": "Collateral_Documentation"
+    },
+    "severity": "warning"
+  },
+  {
+    "name": "ownership_verification",
+    "description": "Owners with 20%+ ownership must be verified",
+    "rule_type": "array_validation",
+    "parameters": {
+      "array_field": "owners",
+      "filter_field": "ownershipPercentage",
+      "filter_operator": "greater_than_or_equal",
+      "filter_value": 20,
+      "required_fields": ["name", "ssn", "dateOfBirth"]
+    },
+    "severity": "error"
+  },
+  {
+    "name": "revenue_trend_check",
+    "description": "Flag significant revenue decline (>20%)",
+    "rule_type": "calculated_threshold",
+    "parameters": {
+      "current_field": "annualRevenue",
+      "prior_field": "annualRevenuePriorYear",
+      "operator": "percentage_change_greater_than",
+      "value": -20
+    },
+    "severity": "warning"
+  },
+  {
+    "name": "ein_format",
+    "description": "EIN must match valid format",
+    "rule_type": "format_validation",
+    "parameters": {
+      "field": "ein",
+      "pattern": "^\\d{2}-\\d{7}$"
+    },
+    "severity": "error"
+  },
+  {
+    "name": "positive_net_income",
+    "description": "Net income should be positive",
+    "rule_type": "threshold",
+    "parameters": {
+      "field": "netIncome",
+      "operator": "greater_than",
+      "value": 0
+    },
+    "severity": "warning"
+  }
+]

@@ -1,0 +1,130 @@
+{
+  "baseAnalyzerId": "prebuilt-document",
+  "scenario": "document",
+  "description": "Extract 16 critical fields from Home Loan / Mortgage Application Documents for impactful demo showcasing complete underwriting automation",
+  "config": {
+    "returnDetails": true,
+    "enableOcr": true,
+    "enableLayout": true,
+    "estimateFieldSourceAndConfidence": true
+  },
+  "models": {
+    "completion": "gpt-4.1"
+  },
+  "fieldSchema": {
+    "fields": {
+      "borrowerName": {
+        "type": "string",
+        "method": "extract",
+        "description": "Primary borrower full legal name",
+        "category": "Borrower Identity",
+        "demo_impact": "Critical for identity verification and application matching"
+      },
+      "propertyAddress": {
+        "type": "string",
+        "method": "extract",
+        "description": "Subject property address - the asset being financed",
+        "category": "Property Information",
+        "demo_impact": "Links loan to specific asset, enables property risk assessment"
+      },
+      "loanAmount": {
+        "type": "number",
+        "method": "extract",
+        "description": "Requested loan amount in USD",
+        "category": "Loan Details",
+        "demo_impact": "Primary decision factor - determines exposure and product eligibility"
+      },
+      "purchasePrice": {
+        "type": "number",
+        "method": "extract",
+        "description": "Property purchase price in USD",
+        "category": "Property Valuation",
+        "demo_impact": "Essential for LTV calculation and risk assessment"
+      },
+      "appraisedValue": {
+        "type": "number",
+        "method": "extract",
+        "description": "Appraised market value from professional property appraisal",
+        "category": "Property Valuation",
+        "demo_impact": "Independent valuation used for final LTV and collateral assessment"
+      },
+      "downPaymentAmount": {
+        "type": "number",
+        "method": "extract",
+        "description": "Borrower's down payment contribution in USD",
+        "category": "Financial Qualification",
+        "demo_impact": "Shows borrower equity stake and reduces lender risk"
+      },
+      "loanType": {
+        "type": "string",
+        "method": "extract",
+        "description": "Type of loan product (Conventional, FHA, VA, USDA, Jumbo)",
+        "category": "Loan Details",
+        "demo_impact": "Determines underwriting guidelines and compliance requirements"
+      },
+      "interestRate": {
+        "type": "number",
+        "method": "extract",
+        "description": "Loan interest rate percentage",
+        "category": "Loan Pricing",
+        "demo_impact": "Key pricing metric affecting affordability and profitability"
+      },
+      "occupancyType": {
+        "type": "string",
+        "method": "extract",
+        "description": "How borrower will use property (Primary Residence, Second Home, Investment)",
+        "category": "Risk Classification",
+        "demo_impact": "Primary residences have lower default rates - critical risk factor"
+      },
+      "closingDate": {
+        "type": "date",
+        "method": "extract",
+        "description": "Expected or actual loan closing date",
+        "category": "Timeline Management",
+        "demo_impact": "Critical for pipeline management and coordination of parties"
+      },
+      "employerName": {
+        "type": "string",
+        "method": "extract",
+        "description": "Current employer name for primary borrower",
+        "category": "Employment Verification",
+        "demo_impact": "Validates income source stability and reputation"
+      },
+      "annualIncome": {
+        "type": "number",
+        "method": "extract",
+        "description": "Total annual gross income from all sources in USD",
+        "category": "Income Qualification",
+        "demo_impact": "Primary qualification metric - must support debt obligations"
+      },
+      "monthlyIncome": {
+        "type": "number",
+        "method": "extract",
+        "description": "Total monthly gross income in USD",
+        "category": "Income Qualification",
+        "demo_impact": "Used for DTI calculation - key underwriting metric"
+      },
+      "totalMonthlyDebt": {
+        "type": "number",
+        "method": "extract",
+        "description": "Sum of all monthly debt obligations (auto, student, credit cards, etc.)",
+        "category": "Debt Analysis",
+        "demo_impact": "Critical for DTI ratio - determines if borrower can afford new payment"
+      },
+      "creditScore": {
+        "type": "integer",
+        "method": "extract",
+        "description": "FICO credit score (300-850 range)",
+        "category": "Credit Risk",
+        "demo_impact": "Primary risk indicator - affects rate, approval, and insurance requirements"
+      },
+      "totalAssets": {
+        "type": "number",
+        "method": "extract",
+        "description": "Total value of liquid and non-liquid assets in USD",
+        "category": "Financial Reserves",
+        "demo_impact": "Demonstrates financial reserves for down payment, closing costs, and emergency cushion"
+      }
+    }
+  }
+}

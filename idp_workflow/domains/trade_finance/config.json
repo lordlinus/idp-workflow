@@ -1,0 +1,17 @@
+{
+  "domain_id": "trade_finance",
+  "display_name": "Trade Finance Document Analysis",
+  "description": "Process complex trade finance documents including Letters of Credit, Bills of Lading, Commercial Invoices, and compliance documentation for international trade.",
+  "icon": "🚢",
+  "stp_confidence_threshold": 0.92,
+  "require_human_review_categories": ["Letter_of_Credit", "Bill_of_Lading", "Sanctions_Screening"],
+  "max_processing_pages": 150,
+  "settings": {
+    "currencies": ["USD", "EUR", "GBP", "CNY", "JPY", "SGD"],
+    "date_format": "DD-MMM-YYYY",
+    "incoterms": ["FOB", "CIF", "CFR", "EXW", "DDP", "DAP", "FCA"],
+    "sanctions_check_required": true,
+    "dual_use_goods_check": true,
+    "documentary_credit_types": ["Sight LC", "Usance LC", "Standby LC", "Revolving LC"]
+  }
+}

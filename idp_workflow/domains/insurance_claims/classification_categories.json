@@ -1,0 +1,89 @@
+[
+  {
+    "name": "Insurance_Claim_Form",
+    "description/Note": "Page describing the PruShield pre/post-hospitalisation benefit claim form, instructions, and required documents. No financial charges listed.",
+    "pattern_keywords": [
+      "Prudential",
+      "PruShield",
+      "Pre and Post-Hospitalisation Benefit Claim",
+      "Policy Terms and Conditions",
+      "Clinical Abstract Application Form",
+      "Life Assureds Particulars",
+      "No Charges",
+      "Death Claim",
+      "Original Hospital Bill",
+      "Tax Invoice and Receipt"
+    ],
+    "required": true,
+    "extraction_priority": 2
+  },
+  {
+    "name": "Hospital_Admission_Details",
+    "description/Note": "Page specifying hospital admission date, day surgery, and the hospital name. No specific charges included.",
+    "pattern_keywords": [
+      "Hospital Admission",
+      "Day Surgery",
+      "Diagnosis / Surgical Procedure",
+      "Date of Hospitalisation",
+      "Pre/Post Hospitalisation",
+      "Prudential Assurance",
+      "Inpatient Hospitalization"
+    ],
+    "required": false,
+    "extraction_priority": 1
+  },
+  {
+    "name": "Declaration_Terms_Conditions",
+    "description/Note": "Page with signed declarations, terms and conditions of the insurance claim, and privacy notice details.",
+    "pattern_keywords": [
+      "Declaration",
+      "Policy Terms",
+      "Personal Data / Privacy Notice",
+      "Authorization & Consent",
+      "Liability / Policy Coverage",
+      "Signature of Life Assured",
+      "Policyowner",
+      "NRIC / Passport",
+      "Date & Signature"
+    ],
+    "required": true,
+    "extraction_priority": 0
+  },
+  {
+    "name": "Medical_Invoice",
+    "description/Note": "Tax invoice detailing consultation charges, subsidies, and amount payable for medical services.",
+    "pattern_keywords": [
+      "Tax Invoice",
+      "Medical Centre",
+      "Hospital",
+      "Payment Received",
+      "Consultation Fee",
+      "Government Subsidy",
+      "Charges Payable",
+      "Patient Name / ID",
+      "Invoice Date / Number",
+      "Invoice Number",
+      "Cash Payment",
+      "Visit Date",
+      "Repeat Consultation"
+    ],
+    "required": true,
+    "extraction_priority": 3
+  },
+  {
+    "name": "General_Information",
+    "description/Note": "General information, hospital contact details, payment options, and instructions on how to pay bills.",
+    "pattern_keywords": [
+      "General Enquiries",
+      "Appointment Line",
+      "Medical Records Office",
+      "Operating Hours",
+      "Payment Methods",
+      "Billing Enquiries",
+      "Cheque Payment",
+      "e-Payment Options"
+    ],
+    "required": false,
+    "extraction_priority": 0
+  }
+]

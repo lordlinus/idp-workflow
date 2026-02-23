@@ -1,0 +1,242 @@
+[
+  {
+    "name": "Loan_Application",
+    "description/Note": "Business loan application form with borrower information, loan request details, and business information.",
+    "pattern_keywords": [
+      "Business Loan Application",
+      "SBA Form",
+      "Loan Amount Requested",
+      "Purpose of Loan",
+      "Business Name",
+      "DBA",
+      "EIN",
+      "Business Address",
+      "Legal Structure",
+      "LLC",
+      "Corporation",
+      "Partnership"
+    ],
+    "required": true,
+    "extraction_priority": 3
+  },
+  {
+    "name": "Business_Tax_Returns",
+    "description/Note": "Business tax returns (Form 1120, 1120S, 1065) showing business income, deductions, and taxable income.",
+    "pattern_keywords": [
+      "Form 1120",
+      "Form 1120S",
+      "Form 1065",
+      "Corporate Tax Return",
+      "Partnership Return",
+      "S Corporation",
+      "Gross Receipts",
+      "Cost of Goods Sold",
+      "Taxable Income",
+      "Net Income",
+      "Schedule K-1"
+    ],
+    "required": true,
+    "extraction_priority": 3
+  },
+  {
+    "name": "Personal_Tax_Returns",
+    "description/Note": "Personal tax returns of business owners/guarantors (Form 1040) with schedules.",
+    "pattern_keywords": [
+      "Form 1040",
+      "Individual Income Tax",
+      "Schedule C",
+      "Schedule E",
+      "Self-Employment",
+      "Adjusted Gross Income",
+      "Taxable Income",
+      "Filing Status",
+      "W-2 Income"
+    ],
+    "required": true,
+    "extraction_priority": 2
+  },
+  {
+    "name": "Financial_Statement",
+    "description/Note": "Business financial statements including Balance Sheet, Income Statement, and Cash Flow Statement.",
+    "pattern_keywords": [
+      "Balance Sheet",
+      "Income Statement",
+      "Profit and Loss",
+      "P&L",
+      "Cash Flow Statement",
+      "Assets",
+      "Liabilities",
+      "Equity",
+      "Revenue",
+      "Expenses",
+      "Net Income",
+      "EBITDA",
+      "Retained Earnings"
+    ],
+    "required": true,
+    "extraction_priority": 3
+  },
+  {
+    "name": "Bank_Statements",
+    "description/Note": "Business bank account statements showing cash flow, balances, and transaction history.",
+    "pattern_keywords": [
+      "Bank Statement",
+      "Business Account",
+      "Checking Account",
+      "Beginning Balance",
+      "Ending Balance",
+      "Deposits",
+      "Withdrawals",
+      "Average Balance",
+      "Statement Period",
+      "Account Activity"
+    ],
+    "required": true,
+    "extraction_priority": 2
+  },
+  {
+    "name": "Business_Plan",
+    "description/Note": "Business plan document including executive summary, market analysis, and financial projections.",
+    "pattern_keywords": [
+      "Business Plan",
+      "Executive Summary",
+      "Market Analysis",
+      "Marketing Strategy",
+      "Management Team",
+      "Financial Projections",
+      "Revenue Forecast",
+      "Break-Even Analysis",
+      "Competitive Analysis",
+      "SWOT Analysis"
+    ],
+    "required": false,
+    "extraction_priority": 1
+  },
+  {
+    "name": "Articles_of_Incorporation",
+    "description/Note": "Legal formation documents including Articles of Incorporation, Operating Agreement, or Partnership Agreement.",
+    "pattern_keywords": [
+      "Articles of Incorporation",
+      "Certificate of Formation",
+      "Operating Agreement",
+      "Partnership Agreement",
+      "Bylaws",
+      "Registered Agent",
+      "State of Formation",
+      "Business Purpose",
+      "Members",
+      "Shareholders"
+    ],
+    "required": true,
+    "extraction_priority": 1
+  },
+  {
+    "name": "Business_License",
+    "description/Note": "Business licenses, permits, and registrations required to operate the business.",
+    "pattern_keywords": [
+      "Business License",
+      "Operating Permit",
+      "Professional License",
+      "Trade License",
+      "DBA Registration",
+      "Fictitious Name",
+      "License Number",
+      "Expiration Date",
+      "Issuing Authority"
+    ],
+    "required": false,
+    "extraction_priority": 1
+  },
+  {
+    "name": "Collateral_Documentation",
+    "description/Note": "Documents related to collateral including property deeds, equipment lists, and appraisals.",
+    "pattern_keywords": [
+      "Deed",
+      "Title",
+      "Equipment List",
+      "Asset Schedule",
+      "Appraisal Report",
+      "Property Value",
+      "Collateral Description",
+      "Lien Position",
+      "UCC Filing",
+      "Security Agreement"
+    ],
+    "required": false,
+    "extraction_priority": 2
+  },
+  {
+    "name": "Accounts_Receivable_Aging",
+    "description/Note": "Aging report of accounts receivable showing outstanding customer invoices.",
+    "pattern_keywords": [
+      "Accounts Receivable",
+      "A/R Aging",
+      "Aging Report",
+      "Current",
+      "30 Days",
+      "60 Days",
+      "90 Days",
+      "Over 90",
+      "Customer Name",
+      "Invoice Date",
+      "Amount Due"
+    ],
+    "required": false,
+    "extraction_priority": 2
+  },
+  {
+    "name": "Accounts_Payable_Aging",
+    "description/Note": "Aging report of accounts payable showing outstanding vendor obligations.",
+    "pattern_keywords": [
+      "Accounts Payable",
+      "A/P Aging",
+      "Vendor",
+      "Supplier",
+      "Current",
+      "30 Days",
+      "60 Days",
+      "90 Days",
+      "Invoice Number",
+      "Due Date",
+      "Amount Owed"
+    ],
+    "required": false,
+    "extraction_priority": 1
+  },
+  {
+    "name": "Personal_Financial_Statement",
+    "description/Note": "Personal financial statement of business owners/guarantors showing personal assets and liabilities.",
+    "pattern_keywords": [
+      "Personal Financial Statement",
+      "SBA Form 413",
+      "Personal Assets",
+      "Personal Liabilities",
+      "Net Worth",
+      "Real Estate Owned",
+      "Notes Payable",
+      "Stocks and Bonds",
+      "Life Insurance",
+      "Contingent Liabilities"
+    ],
+    "required": true,
+    "extraction_priority": 2
+  },
+  {
+    "name": "Debt_Schedule",
+    "description/Note": "Schedule of existing business debt including lender, balance, payment, and terms.",
+    "pattern_keywords": [
+      "Debt Schedule",
+      "Loan Schedule",
+      "Creditor",
+      "Original Amount",
+      "Current Balance",
+      "Monthly Payment",
+      "Interest Rate",
+      "Maturity Date",
+      "Collateral",
+      "Purpose"
+    ],
+    "required": false,
+    "extraction_priority": 2
+  }
+]

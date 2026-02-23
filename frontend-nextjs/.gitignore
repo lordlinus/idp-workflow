@@ -1,0 +1,11 @@
+.eslintrc.json
+next-env.d.ts
+.next
+out
+build
+dist
+node_modules
+.env
+.env.local
+*.pem
+.DS_Store

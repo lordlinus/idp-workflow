@@ -1,0 +1,154 @@
+[
+  {
+    "name": "Loan_Application_Form",
+    "description/Note": "Uniform Residential Loan Application (Form 1003) containing borrower information, employment details, and loan terms requested.",
+    "pattern_keywords": [
+      "Uniform Residential Loan Application",
+      "Form 1003",
+      "Borrower Information",
+      "Co-Borrower",
+      "Loan Amount Requested",
+      "Property Address",
+      "Purpose of Loan",
+      "Purchase",
+      "Refinance",
+      "Construction",
+      "Assets and Liabilities"
+    ],
+    "required": true,
+    "extraction_priority": 3
+  },
+  {
+    "name": "Income_Verification",
+    "description/Note": "Documents verifying borrower income including W-2 forms, pay stubs, tax returns, or employment verification letters.",
+    "pattern_keywords": [
+      "W-2",
+      "Wage and Tax Statement",
+      "Pay Stub",
+      "Earnings Statement",
+      "Gross Pay",
+      "Net Pay",
+      "Year-to-Date",
+      "Tax Return",
+      "Form 1040",
+      "Employment Verification",
+      "Employer Name"
+    ],
+    "required": true,
+    "extraction_priority": 3
+  },
+  {
+    "name": "Bank_Statement",
+    "description/Note": "Bank account statements showing account balances, transaction history, and available funds for down payment and reserves.",
+    "pattern_keywords": [
+      "Bank Statement",
+      "Account Summary",
+      "Beginning Balance",
+      "Ending Balance",
+      "Deposits",
+      "Withdrawals",
+      "Account Number",
+      "Statement Period",
+      "Available Balance",
+      "Checking Account",
+      "Savings Account"
+    ],
+    "required": true,
+    "extraction_priority": 2
+  },
+  {
+    "name": "Property_Valuation",
+    "description/Note": "Property appraisal report containing market value assessment, comparable sales analysis, and property condition.",
+    "pattern_keywords": [
+      "Appraisal Report",
+      "Market Value",
+      "Comparable Sales",
+      "Property Description",
+      "Square Footage",
+      "Year Built",
+      "Neighborhood Analysis",
+      "Subject Property",
+      "Appraised Value",
+      "URAR",
+      "Uniform Residential Appraisal Report"
+    ],
+    "required": true,
+    "extraction_priority": 3
+  },
+  {
+    "name": "Credit_Report",
+    "description/Note": "Credit report showing credit score, credit history, outstanding debts, and payment history.",
+    "pattern_keywords": [
+      "Credit Report",
+      "Credit Score",
+      "FICO Score",
+      "Credit History",
+      "Payment History",
+      "Outstanding Debt",
+      "Credit Limit",
+      "Accounts",
+      "Collections",
+      "Inquiries",
+      "Experian",
+      "Equifax",
+      "TransUnion"
+    ],
+    "required": true,
+    "extraction_priority": 2
+  },
+  {
+    "name": "Title_Document",
+    "description/Note": "Title search, title insurance commitment, or deed showing property ownership and any liens or encumbrances.",
+    "pattern_keywords": [
+      "Title Search",
+      "Title Insurance",
+      "Commitment for Title",
+      "Deed",
+      "Property Title",
+      "Legal Description",
+      "Liens",
+      "Encumbrances",
+      "Chain of Title",
+      "Vesting",
+      "Warranty Deed"
+    ],
+    "required": false,
+    "extraction_priority": 1
+  },
+  {
+    "name": "Insurance_Declaration",
+    "description/Note": "Homeowners insurance declaration page showing coverage amounts, policy period, and premium.",
+    "pattern_keywords": [
+      "Insurance Declaration",
+      "Homeowners Insurance",
+      "Dwelling Coverage",
+      "Liability Coverage",
+      "Policy Number",
+      "Premium",
+      "Effective Date",
+      "Expiration Date",
+      "Deductible",
+      "Named Insured"
+    ],
+    "required": false,
+    "extraction_priority": 1
+  },
+  {
+    "name": "Purchase_Agreement",
+    "description/Note": "Real estate purchase contract between buyer and seller with sale price, terms, and contingencies.",
+    "pattern_keywords": [
+      "Purchase Agreement",
+      "Sales Contract",
+      "Purchase Price",
+      "Earnest Money",
+      "Closing Date",
+      "Contingencies",
+      "Seller",
+      "Buyer",
+      "Property Address",
+      "Terms of Sale"
+    ],
+    "required": false,
+    "extraction_priority": 2
+  }
+]

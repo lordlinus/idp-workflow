@@ -1,0 +1,16 @@
+{
+  "domain_id": "insurance_claims",
+  "display_name": "Insurance Claims Processing",
+  "description": "Process health insurance claims including medical invoices, hospital bills, and claim forms. Supports pre/post hospitalization benefits, Medisave integration, and multi-payer scenarios.",
+  "icon": "🏥",
+  "stp_confidence_threshold": 0.85,
+  "require_human_review_categories": ["Declaration_Terms_Conditions"],
+  "max_processing_pages": 50,
+  "settings": {
+    "currency": "SGD",
+    "date_format": "DD.MM.YYYY",
+    "supported_insurers": ["Prudential", "AIA", "NTUC Income", "Great Eastern"],
+    "medisave_integration": true,
+    "gst_rate": 0.09
+  }
+}

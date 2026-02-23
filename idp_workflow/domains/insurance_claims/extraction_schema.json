@@ -1,0 +1,130 @@
+{
+  "baseAnalyzerId": "prebuilt-document",
+  "scenario": "document",
+  "description": "Extract 16 critical fields from Health Insurance Claims for impactful demo showcasing complete claims adjudication automation",
+  "config": {
+    "returnDetails": true,
+    "enableOcr": true,
+    "enableLayout": true,
+    "estimateFieldSourceAndConfidence": true
+  },
+  "models": {
+    "completion": "gpt-4.1"
+  },
+  "fieldSchema": {
+    "fields": {
+      "patientName": {
+        "type": "string",
+        "method": "extract",
+        "description": "Patient or claimant full legal name",
+        "category": "Patient Identity",
+        "demo_impact": "Critical for claim matching and identity verification against policy"
+      },
+      "patientNRIC": {
+        "type": "string",
+        "method": "extract",
+        "description": "Singapore NRIC number (policy holder identifier)",
+        "category": "Patient Identity",
+        "demo_impact": "Links claim to specific policy and enables fraud prevention"
+      },
+      "invoiceIssuedOrgName": {
+        "type": "string",
+        "method": "extract",
+        "description": "Hospital, clinic, or medical provider name",
+        "category": "Provider Information",
+        "demo_impact": "Validates in-network provider status and negotiated rates"
+      },
+      "doctorName": {
+        "type": "string",
+        "method": "extract",
+        "description": "Attending physician or treating doctor name",
+        "category": "Provider Information",
+        "demo_impact": "Verifies medical credentials and prevents billing fraud"
+      },
+      "billNo": {
+        "type": "string",
+        "method": "extract",
+        "description": "Invoice or bill reference number for tracking",
+        "category": "Claim Reference",
+        "demo_impact": "Unique identifier for claim matching and duplicate prevention"
+      },
+      "billDate": {
+        "type": "date",
+        "method": "extract",
+        "description": "Date invoice was issued by provider",
+        "category": "Timeline",
+        "demo_impact": "Validates claim within submission timeframe (typically 90 days)"
+      },
+      "visitDate": {
+        "type": "date",
+        "method": "extract",
+        "description": "Date of hospital admission or medical visit",
+        "category": "Timeline",
+        "demo_impact": "Determines coverage period and validates claim timeliness"
+      },
+      "dischargeDate": {
+        "type": "date",
+        "method": "extract",
+        "description": "Date patient was discharged from hospital",
+        "category": "Timeline",
+        "demo_impact": "Calculates length of stay for hospitalization benefits"
+      },
+      "diagnosis": {
+        "type": "string",
+        "method": "extract",
+        "description": "Medical diagnosis or clinical condition requiring treatment",
+        "category": "Medical Coverage",
+        "demo_impact": "Validates treatment is covered under policy exclusions/inclusions"
+      },
+      "treatmentDescription": {
+        "type": "string",
+        "method": "extract",
+        "description": "Summary of treatments, procedures, and services provided",
+        "category": "Medical Coverage",
+        "demo_impact": "Ensures services are medically necessary and policy-covered"
+      },
+      "totalBillAmount": {
+        "type": "number",
+        "method": "extract",
+        "description": "Total charges before subsidies and deductions (SGD)",
+        "category": "Financial Breakdown",
+        "demo_impact": "Gross amount used for benefit limit calculation"
+      },
+      "governmentSubsidy": {
+        "type": "number",
+        "method": "extract",
+        "description": "Government subsidy or Pioneer/Merdeka assistance amount (SGD)",
+        "category": "Financial Breakdown",
+        "demo_impact": "Other payer responsibility - reduces insurer liability"
+      },
+      "medisavePayable": {
+        "type": "number",
+        "method": "extract",
+        "description": "Amount paid from CPF MediSave account (SGD)",
+        "category": "Financial Breakdown",
+        "demo_impact": "Integrated benefit coordination - key SGD insurance feature"
+      },
+      "insurerPayable": {
+        "type": "number",
+        "method": "extract",
+        "description": "Amount the insurance company must pay (SGD)",
+        "category": "Financial Breakdown",
+        "demo_impact": "Directly impacts claims processing decision and payout"
+      },
+      "patientPayable": {
+        "type": "number",
+        "method": "extract",
+        "description": "Final amount patient owes (copay/coinsurance) (SGD)",
+        "category": "Financial Breakdown",
+        "demo_impact": "Validates patient responsibility calculation against policy terms"
+      },
+      "gstAmount": {
+        "type": "number",
+        "method": "extract",
+        "description": "9% Goods and Services Tax on medical charges (SGD)",
+        "category": "Financial Breakdown",
+        "demo_impact": "Complex calculation showing OCR and mathematical accuracy"
+      }
+    }
+  }
+}

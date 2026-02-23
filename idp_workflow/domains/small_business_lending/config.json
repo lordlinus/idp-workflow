@@ -1,0 +1,20 @@
+{
+  "domain_id": "small_business_lending",
+  "display_name": "Small Business Lending",
+  "description": "Process small business loan applications including financial statements, business verification, collateral assessment, and SBA loan documentation.",
+  "icon": "🏢",
+  "stp_confidence_threshold": 0.88,
+  "require_human_review_categories": ["Financial_Statement", "Business_Tax_Returns", "Collateral_Documentation"],
+  "max_processing_pages": 200,
+  "settings": {
+    "currency": "USD",
+    "date_format": "MM/DD/YYYY",
+    "loan_programs": ["SBA 7(a)", "SBA 504", "SBA Microloan", "Term Loan", "Line of Credit"],
+    "max_loan_amount": 5000000,
+    "min_business_age_months": 24,
+    "min_credit_score": 650,
+    "dscr_minimum": 1.25,
+    "require_business_plan": true,
+    "require_collateral_over": 350000
+  }
+}

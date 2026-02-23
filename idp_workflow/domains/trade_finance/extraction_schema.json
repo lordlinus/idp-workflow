@@ -1,0 +1,130 @@
+{
+  "baseAnalyzerId": "prebuilt-document",
+  "scenario": "document",
+  "description": "Extract 16 critical fields from Trade Finance Documents (LC, B/L, Invoice, Certificate of Origin)",
+  "config": {
+    "returnDetails": true,
+    "enableOcr": true,
+    "enableLayout": true,
+    "estimateFieldSourceAndConfidence": true
+  },
+  "models": {
+    "completion": "gpt-4.1"
+  },
+  "fieldSchema": {
+    "fields": {
+      "lcNumber": {
+        "type": "string",
+        "method": "extract",
+        "description": "Letter of Credit reference number (unique identifier for the transaction)",
+        "category": "LC_Identity",
+        "demo_impact": "Identifies the specific trade finance transaction and links all supporting documents"
+      },
+      "lcType": {
+        "type": "string",
+        "method": "extract",
+        "description": "Type of LC: Irrevocable, Confirmed, Transferable, or Standby",
+        "category": "LC_Identity",
+        "demo_impact": "Determines bank's payment guarantee strength and seller's risk level"
+      },
+      "issuingBank": {
+        "type": "string",
+        "method": "extract",
+        "description": "Name and SWIFT code of the bank issuing the LC (guarantees payment)",
+        "category": "Parties",
+        "demo_impact": "Bank reputation determines payment certainty; used for bank credit check"
+      },
+      "beneficiary": {
+        "type": "string",
+        "method": "extract",
+        "description": "LC beneficiary - the seller/exporter who receives payment",
+        "category": "Parties",
+        "demo_impact": "Must match commercial invoice seller; critical for payment verification"
+      },
+      "applicant": {
+        "type": "string",
+        "method": "extract",
+        "description": "LC applicant - the buyer/importer who requested the LC",
+        "category": "Parties",
+        "demo_impact": "Buyer's creditworthiness; used for compliance and KYC checks"
+      },
+      "lcAmount": {
+        "type": "number",
+        "method": "extract",
+        "description": "Total Letter of Credit amount value in specified currency",
+        "category": "Financial_Terms",
+        "demo_impact": "Maximum payment bank will guarantee; must match invoice amount within tolerance (+/- 5%)"
+      },
+      "lcCurrency": {
+        "type": "string",
+        "method": "extract",
+        "description": "Currency code of the LC (USD, EUR, GBP, SGD, CNY, etc.)",
+        "category": "Financial_Terms",
+        "demo_impact": "Confirms currency consistency across all transaction documents; affects FX risk"
+      },
+      "expiryDate": {
+        "type": "date",
+        "method": "extract",
+        "description": "Final date by which the LC is valid; documents must be presented by this date",
+        "category": "Compliance_Deadlines",
+        "demo_impact": "Critical deadline; expired LC cannot be negotiated; non-compliance is automatic rejection"
+      },
+      "latestShipmentDate": {
+        "type": "date",
+        "method": "extract",
+        "description": "Last date goods must be shipped on board (per LC terms)",
+        "category": "Compliance_Deadlines",
+        "demo_impact": "Shipment must occur by this date; used to verify on-time delivery for LC compliance"
+      },
+      "invoiceNumber": {
+        "type": "string",
+        "method": "extract",
+        "description": "Commercial invoice number from seller, must reference LC number",
+        "category": "Documents",
+        "demo_impact": "Links invoice to LC; enables document reconciliation and fraud detection"
+      },
+      "totalInvoiceAmount": {
+        "type": "number",
+        "method": "extract",
+        "description": "Total invoice amount (CIF or FOB value depending on Incoterms)",
+        "category": "Financial_Terms",
+        "demo_impact": "Must match LC amount within tolerance; critical validation for payment processing"
+      },
+      "invoiceCurrency": {
+        "type": "string",
+        "method": "extract",
+        "description": "Currency of the invoice amount",
+        "category": "Financial_Terms",
+        "demo_impact": "Must match LC currency; mismatch requires amendment or bank approval"
+      },
+      "blNumber": {
+        "type": "string",
+        "method": "extract",
+        "description": "Bill of Lading number from shipping carrier; proof of shipment and goods custody",
+        "category": "Transport_Documents",
+        "demo_impact": "Essential document; proves cargo is on board vessel; required for LC payment"
+      },
+      "shippedOnBoardDate": {
+        "type": "date",
+        "method": "extract",
+        "description": "Actual date goods were shipped on board the vessel",
+        "category": "Transport_Documents",
+        "demo_impact": "Must be on or before latest shipment date; determines document validity window"
+      },
+      "countryOfOrigin": {
+        "type": "string",
+        "method": "extract",
+        "description": "Country where goods were manufactured/produced; from Certificate of Origin",
+        "category": "Compliance",
+        "demo_impact": "Required for customs, tariff calculations, and sanctions/restricted country screening"
+      },
+      "incoterms": {
+        "type": "string",
+        "method": "extract",
+        "description": "Incoterms code with named place (e.g., 'CIF Singapore', 'FOB Hong Kong'); defines cost/risk allocation",
+        "category": "Financial_Terms",
+        "demo_impact": "Determines who pays freight/insurance and when risk transfers; affects invoice total"
+      }
+    }
+  }
+}

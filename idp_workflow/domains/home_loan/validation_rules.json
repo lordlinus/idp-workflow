@@ -1,0 +1,88 @@
+[
+  {
+    "name": "required_loan_application",
+    "description": "Loan application form must be present",
+    "rule_type": "required_document",
+    "parameters": {
+      "document_type": "Loan_Application_Form"
+    },
+    "severity": "error"
+  },
+  {
+    "name": "required_income_verification",
+    "description": "Income verification documents required",
+    "rule_type": "required_document",
+    "parameters": {
+      "document_type": "Income_Verification"
+    },
+    "severity": "error"
+  },
+  {
+    "name": "credit_score_minimum",
+    "description": "Credit score must meet minimum threshold",
+    "rule_type": "threshold",
+    "parameters": {
+      "field": "creditScore",
+      "operator": "greater_than_or_equal",
+      "value": 620
+    },
+    "severity": "error"
+  },
+  {
+    "name": "ltv_ratio_check",
+    "description": "Loan-to-Value ratio should not exceed 80% without PMI",
+    "rule_type": "calculated_threshold",
+    "parameters": {
+      "numerator_field": "loanAmount",
+      "denominator_field": "appraisedValue",
+      "operator": "less_than_or_equal",
+      "value": 0.80
+    },
+    "severity": "warning"
+  },
+  {
+    "name": "dti_ratio_check",
+    "description": "Debt-to-Income ratio should not exceed 43%",
+    "rule_type": "calculated_threshold",
+    "parameters": {
+      "numerator_field": "totalMonthlyDebt",
+      "denominator_field": "monthlyIncome",
+      "operator": "less_than_or_equal",
+      "value": 0.43
+    },
+    "severity": "warning"
+  },
+  {
+    "name": "employment_history",
+    "description": "Verify at least 2 years of employment history",
+    "rule_type": "array_validation",
+    "parameters": {
+      "field": "employmentInfo",
+      "total_years_field": "yearsEmployed",
+      "min_total": 2
+    },
+    "severity": "warning"
+  },
+  {
+    "name": "down_payment_verification",
+    "description": "Down payment should be covered by verified assets",
+    "rule_type": "cross_field",
+    "parameters": {
+      "field1": "downPaymentAmount",
+      "field2": "totalAssets",
+      "operator": "less_than_or_equal"
+    },
+    "severity": "warning"
+  },
+  {
+    "name": "jumbo_loan_threshold",
+    "description": "Flag jumbo loans for additional review",
+    "rule_type": "threshold",
+    "parameters": {
+      "field": "loanAmount",
+      "operator": "greater_than",
+      "value": 726200
+    },
+    "severity": "info"
+  }
+]

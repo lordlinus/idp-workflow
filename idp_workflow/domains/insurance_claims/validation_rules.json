@@ -1,0 +1,52 @@
+[
+  {
+    "name": "required_claim_form",
+    "description": "Insurance claim form must be present in submission",
+    "rule_type": "required_document",
+    "parameters": {
+      "document_type": "Insurance_Claim_Form"
+    },
+    "severity": "error"
+  },
+  {
+    "name": "required_invoice",
+    "description": "At least one medical invoice must be present",
+    "rule_type": "required_document",
+    "parameters": {
+      "document_type": "Medical_Invoice"
+    },
+    "severity": "error"
+  },
+  {
+    "name": "invoice_amount_threshold",
+    "description": "Flag invoices over $5000 for additional review",
+    "rule_type": "threshold",
+    "parameters": {
+      "field": "totalAmountPayable",
+      "operator": "greater_than",
+      "value": 5000
+    },
+    "severity": "warning"
+  },
+  {
+    "name": "date_consistency",
+    "description": "Visit date should be before or equal to bill date",
+    "rule_type": "cross_field",
+    "parameters": {
+      "field1": "visitDate",
+      "field2": "billDate",
+      "operator": "less_than_or_equal"
+    },
+    "severity": "warning"
+  },
+  {
+    "name": "nric_format",
+    "description": "NRIC must match Singapore format",
+    "rule_type": "format_validation",
+    "parameters": {
+      "field": "patientNRIC",
+      "pattern": "^[STFG]\\d{7}[A-Z]$"
+    },
+    "severity": "error"
+  }
+]

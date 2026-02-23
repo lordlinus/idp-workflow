@@ -1,0 +1,130 @@
+{
+  "baseAnalyzerId": "prebuilt-document",
+  "scenario": "document",
+  "description": "Extract 16 critical fields from Small Business Loan Applications for impactful demo showcasing complete business credit underwriting automation",
+  "config": {
+    "returnDetails": true,
+    "enableOcr": true,
+    "enableLayout": true,
+    "estimateFieldSourceAndConfidence": true
+  },
+  "models": {
+    "completion": "gpt-4.1"
+  },
+  "fieldSchema": {
+    "fields": {
+      "businessName": {
+        "type": "string",
+        "method": "extract",
+        "description": "Legal business name for loan approval and documentation",
+        "category": "Business Identity",
+        "demo_impact": "Verification against business registration and credit reporting"
+      },
+      "ein": {
+        "type": "string",
+        "method": "extract",
+        "description": "Employer Identification Number (unique business identifier)",
+        "category": "Business Identity",
+        "demo_impact": "Links loan to specific business entity and prevents fraud"
+      },
+      "businessType": {
+        "type": "string",
+        "method": "extract",
+        "description": "Legal structure (LLC, Corporation, Partnership, Sole Proprietorship)",
+        "category": "Business Structure",
+        "demo_impact": "Determines tax treatment, liability, and underwriting guidelines"
+      },
+      "dateEstablished": {
+        "type": "date",
+        "method": "extract",
+        "description": "Date business was established (must be 24+ months for most SBA programs)",
+        "category": "Business History",
+        "demo_impact": "Eligibility check - newer businesses have higher risk"
+      },
+      "loanAmountRequested": {
+        "type": "number",
+        "method": "extract",
+        "description": "Amount of loan requested in USD",
+        "category": "Loan Details",
+        "demo_impact": "Primary decision factor - determines program eligibility and collateral requirements"
+      },
+      "loanPurpose": {
+        "type": "string",
+        "method": "extract",
+        "description": "Purpose of loan (Working Capital, Equipment, Real Estate, Acquisition, etc.)",
+        "category": "Loan Details",
+        "demo_impact": "Validates use of proceeds and determines loan terms"
+      },
+      "annualRevenue": {
+        "type": "number",
+        "method": "extract",
+        "description": "Current annual gross revenue in USD",
+        "category": "Financial Performance",
+        "demo_impact": "Primary income metric for debt service capacity assessment"
+      },
+      "netIncome": {
+        "type": "number",
+        "method": "extract",
+        "description": "Annual net income/profit after all expenses in USD",
+        "category": "Financial Performance",
+        "demo_impact": "Profitability indicator - must be positive for most approval"
+      },
+      "ebitda": {
+        "type": "number",
+        "method": "extract",
+        "description": "EBITDA - Earnings Before Interest, Taxes, Depreciation, Amortization",
+        "category": "Cash Flow Capacity",
+        "demo_impact": "Core metric for Debt Service Coverage Ratio (DSCR) calculation"
+      },
+      "totalMonthlyDebtService": {
+        "type": "number",
+        "method": "extract",
+        "description": "Total monthly debt service including existing loans and proposed new loan",
+        "category": "Debt Obligations",
+        "demo_impact": "Critical for DSCR calculation - determines repayment capacity"
+      },
+      "totalAssets": {
+        "type": "number",
+        "method": "extract",
+        "description": "Total business assets (current and fixed)",
+        "category": "Balance Sheet Strength",
+        "demo_impact": "Balance sheet health and asset base for collateral"
+      },
+      "totalLiabilities": {
+        "type": "number",
+        "method": "extract",
+        "description": "Total business liabilities and debt obligations",
+        "category": "Balance Sheet Strength",
+        "demo_impact": "Leverage assessment - debt-to-asset ratio indicator"
+      },
+      "cashOnHand": {
+        "type": "number",
+        "method": "extract",
+        "description": "Cash and cash equivalents available in business accounts",
+        "category": "Liquidity & Working Capital",
+        "demo_impact": "Working capital health and emergency reserves"
+      },
+      "primaryOwnerName": {
+        "type": "string",
+        "method": "extract",
+        "description": "Primary business owner/guarantor full legal name",
+        "category": "Owner Guarantee",
+        "demo_impact": "Personal guarantee requirement for most business loans"
+      },
+      "primaryOwnerCreditScore": {
+        "type": "integer",
+        "method": "extract",
+        "description": "Owner's personal FICO credit score (minimum 650 typically required)",
+        "category": "Owner Credit Risk",
+        "demo_impact": "Personal credit assessment - primary risk indicator alongside business"
+      },
+      "collateralValue": {
+        "type": "number",
+        "method": "extract",
+        "description": "Total estimated fair market value of collateral offered (Real Estate, Equipment, Receivables)",
+        "category": "Loan Security",
+        "demo_impact": "Collateral coverage for loan repayment - risk mitigation"
+      }
+    }
+  }
+}

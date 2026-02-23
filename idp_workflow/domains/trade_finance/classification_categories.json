@@ -1,0 +1,205 @@
+[
+  {
+    "name": "Letter_of_Credit",
+    "description/Note": "Documentary Letter of Credit (LC) issued by a bank guaranteeing payment to the beneficiary upon presentation of compliant documents.",
+    "pattern_keywords": [
+      "Letter of Credit",
+      "Documentary Credit",
+      "LC Number",
+      "Issuing Bank",
+      "Advising Bank",
+      "Beneficiary",
+      "Applicant",
+      "Amount",
+      "Expiry Date",
+      "Latest Shipment Date",
+      "UCP 600",
+      "SWIFT MT700",
+      "Irrevocable",
+      "Confirmed",
+      "Transferable"
+    ],
+    "required": true,
+    "extraction_priority": 3
+  },
+  {
+    "name": "Bill_of_Lading",
+    "description/Note": "Transport document issued by carrier acknowledging receipt of cargo for shipment. Can be Ocean B/L, Multimodal, or Air Waybill.",
+    "pattern_keywords": [
+      "Bill of Lading",
+      "B/L Number",
+      "Shipper",
+      "Consignee",
+      "Notify Party",
+      "Port of Loading",
+      "Port of Discharge",
+      "Vessel Name",
+      "Container Number",
+      "Shipped on Board",
+      "Clean on Board",
+      "Freight Prepaid",
+      "Freight Collect",
+      "Ocean Bill",
+      "Multimodal"
+    ],
+    "required": true,
+    "extraction_priority": 3
+  },
+  {
+    "name": "Commercial_Invoice",
+    "description/Note": "Seller's invoice to buyer detailing goods, quantities, prices, and terms of sale for customs and payment purposes.",
+    "pattern_keywords": [
+      "Commercial Invoice",
+      "Invoice Number",
+      "Seller",
+      "Buyer",
+      "Description of Goods",
+      "Quantity",
+      "Unit Price",
+      "Total Amount",
+      "Currency",
+      "Incoterms",
+      "FOB",
+      "CIF",
+      "Country of Origin",
+      "HS Code",
+      "Terms of Payment"
+    ],
+    "required": true,
+    "extraction_priority": 3
+  },
+  {
+    "name": "Packing_List",
+    "description/Note": "Detailed list of contents of each package or container including weights, dimensions, and marks.",
+    "pattern_keywords": [
+      "Packing List",
+      "Package Number",
+      "Gross Weight",
+      "Net Weight",
+      "Dimensions",
+      "Marks and Numbers",
+      "Container",
+      "Carton",
+      "Pallet",
+      "Quantity per Package",
+      "Total Packages"
+    ],
+    "required": false,
+    "extraction_priority": 2
+  },
+  {
+    "name": "Certificate_of_Origin",
+    "description/Note": "Document certifying the country where goods were manufactured or produced, often required for customs and preferential tariffs.",
+    "pattern_keywords": [
+      "Certificate of Origin",
+      "Country of Origin",
+      "Chamber of Commerce",
+      "Manufacturer",
+      "Exporter",
+      "Consignee",
+      "HS Code",
+      "Tariff Classification",
+      "Form A",
+      "EUR.1",
+      "NAFTA",
+      "Preferential Origin"
+    ],
+    "required": false,
+    "extraction_priority": 2
+  },
+  {
+    "name": "Insurance_Certificate",
+    "description/Note": "Document evidencing marine cargo insurance coverage for the shipment.",
+    "pattern_keywords": [
+      "Insurance Certificate",
+      "Marine Cargo Insurance",
+      "Policy Number",
+      "Insured Value",
+      "CIF Plus",
+      "All Risks",
+      "Institute Cargo Clauses",
+      "Claims Payable",
+      "Conveyance",
+      "Voyage",
+      "Sum Insured"
+    ],
+    "required": false,
+    "extraction_priority": 1
+  },
+  {
+    "name": "Inspection_Certificate",
+    "description/Note": "Third-party inspection report certifying quality, quantity, or condition of goods.",
+    "pattern_keywords": [
+      "Inspection Certificate",
+      "Certificate of Inspection",
+      "SGS",
+      "Bureau Veritas",
+      "Intertek",
+      "Quality Certificate",
+      "Quantity Certificate",
+      "Pre-Shipment Inspection",
+      "PSI",
+      "Findings",
+      "Test Results"
+    ],
+    "required": false,
+    "extraction_priority": 1
+  },
+  {
+    "name": "Draft_Bill_of_Exchange",
+    "description/Note": "Financial instrument ordering the drawee to pay a specified amount to the payee at sight or at a future date.",
+    "pattern_keywords": [
+      "Bill of Exchange",
+      "Draft",
+      "Drawer",
+      "Drawee",
+      "Payee",
+      "Pay to the Order of",
+      "At Sight",
+      "Days After Sight",
+      "Usance",
+      "Accepted",
+      "Value Received"
+    ],
+    "required": false,
+    "extraction_priority": 2
+  },
+  {
+    "name": "Customs_Declaration",
+    "description/Note": "Official document filed with customs authorities declaring details of imported or exported goods.",
+    "pattern_keywords": [
+      "Customs Declaration",
+      "Import Declaration",
+      "Export Declaration",
+      "Entry Number",
+      "HS Code",
+      "Customs Value",
+      "Duty",
+      "Tariff",
+      "Country of Export",
+      "Country of Import",
+      "Clearance"
+    ],
+    "required": false,
+    "extraction_priority": 1
+  },
+  {
+    "name": "Sanctions_Screening",
+    "description/Note": "Compliance screening results for sanctions, denied parties, and restricted entities.",
+    "pattern_keywords": [
+      "Sanctions Screening",
+      "OFAC",
+      "SDN List",
+      "Denied Parties",
+      "Compliance Check",
+      "AML",
+      "KYC",
+      "Restricted Countries",
+      "Dual-Use",
+      "Export Control",
+      "Screening Results"
+    ],
+    "required": false,
+    "extraction_priority": 1
+  }
+]
