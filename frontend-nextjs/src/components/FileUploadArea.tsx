@@ -7,6 +7,116 @@ import { DOMAIN_CONFIG } from '@/lib/utils';
 import { DomainId, LLMProvider, ExtractionSchema, ClassificationCategory, WorkflowOptions } from '@/types';
 import clsx from 'clsx';
 
+const SCHEMA_TEMPLATES: Record<string, { label: string; icon: string; schema: string; categories: string }> = {
+  invoice: {
+    label: 'Invoice',
+    icon: '🧾',
+    schema: JSON.stringify({
+      fieldSchema: {
+        fields: {
+          invoice_number: { type: 'string', description: 'Unique invoice identifier' },
+          invoice_date: { type: 'date', description: 'Date the invoice was issued' },
+          due_date: { type: 'date', description: 'Payment due date' },
+          vendor_name: { type: 'string', description: 'Name of the vendor or supplier' },
+          vendor_address: { type: 'string', description: 'Vendor mailing address' },
+          customer_name: { type: 'string', description: 'Name of the customer or buyer' },
+          subtotal: { type: 'number', description: 'Subtotal before tax' },
+          tax_amount: { type: 'number', description: 'Tax amount applied' },
+          total_amount: { type: 'number', description: 'Total amount due including tax' },
+          currency: { type: 'string', description: 'Currency code (e.g., USD, EUR)' },
+          payment_terms: { type: 'string', description: 'Payment terms (e.g., Net 30)' },
+          line_items: {
+            type: 'array',
+            description: 'Individual line items on the invoice',
+            items: {
+              type: 'object',
+              properties: {
+                description: { type: 'string', description: 'Item description' },
+                quantity: { type: 'integer', description: 'Quantity ordered' },
+                unit_price: { type: 'number', description: 'Price per unit' },
+                amount: { type: 'number', description: 'Line total' },
+              },
+            },
+          },
+        },
+      },
+    }, null, 2),
+    categories: JSON.stringify([
+      { name: 'Commercial_Invoice', 'description/Note': 'Standard commercial invoice for goods or services', pattern_keywords: ['invoice', 'bill', 'amount due', 'payment'] },
+      { name: 'Proforma_Invoice', 'description/Note': 'Preliminary invoice before shipment', pattern_keywords: ['proforma', 'estimate', 'quotation'] },
+      { name: 'Credit_Note', 'description/Note': 'Credit memo or refund document', pattern_keywords: ['credit', 'refund', 'return'] },
+    ], null, 2),
+  },
+  contract: {
+    label: 'Contract',
+    icon: '📝',
+    schema: JSON.stringify({
+      fieldSchema: {
+        fields: {
+          contract_title: { type: 'string', description: 'Title or name of the contract' },
+          contract_number: { type: 'string', description: 'Contract reference number' },
+          effective_date: { type: 'date', description: 'Date the contract becomes effective' },
+          expiration_date: { type: 'date', description: 'Contract expiration or end date' },
+          party_a_name: { type: 'string', description: 'Name of the first party' },
+          party_a_address: { type: 'string', description: 'Address of the first party' },
+          party_b_name: { type: 'string', description: 'Name of the second party' },
+          party_b_address: { type: 'string', description: 'Address of the second party' },
+          contract_value: { type: 'number', description: 'Total monetary value of the contract' },
+          payment_schedule: { type: 'string', description: 'Payment terms and schedule' },
+          governing_law: { type: 'string', description: 'Jurisdiction or governing law' },
+          termination_clause: { type: 'string', description: 'Conditions for early termination' },
+          renewal_terms: { type: 'string', description: 'Auto-renewal or renewal conditions' },
+        },
+      },
+    }, null, 2),
+    categories: JSON.stringify([
+      { name: 'Service_Agreement', 'description/Note': 'Contract for professional services', pattern_keywords: ['service', 'agreement', 'scope of work', 'deliverables'] },
+      { name: 'NDA', 'description/Note': 'Non-disclosure or confidentiality agreement', pattern_keywords: ['confidential', 'non-disclosure', 'proprietary'] },
+      { name: 'Employment_Contract', 'description/Note': 'Employment agreement', pattern_keywords: ['employment', 'salary', 'benefits', 'termination'] },
+    ], null, 2),
+  },
+  medical: {
+    label: 'Medical',
+    icon: '🏥',
+    schema: JSON.stringify({
+      fieldSchema: {
+        fields: {
+          patient_name: { type: 'string', description: 'Full name of the patient' },
+          patient_id: { type: 'string', description: 'Patient medical record number' },
+          date_of_birth: { type: 'date', description: 'Patient date of birth' },
+          visit_date: { type: 'date', description: 'Date of the medical visit or encounter' },
+          provider_name: { type: 'string', description: 'Name of the healthcare provider' },
+          facility_name: { type: 'string', description: 'Name of the medical facility' },
+          diagnosis: { type: 'string', description: 'Primary diagnosis or condition' },
+          diagnosis_code: { type: 'string', description: 'ICD-10 diagnosis code' },
+          procedure: { type: 'string', description: 'Procedure performed' },
+          procedure_code: { type: 'string', description: 'CPT procedure code' },
+          total_charges: { type: 'number', description: 'Total charges for the visit' },
+          insurance_provider: { type: 'string', description: 'Insurance company name' },
+          policy_number: { type: 'string', description: 'Insurance policy number' },
+          medications: {
+            type: 'array',
+            description: 'Prescribed medications',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', description: 'Medication name' },
+                dosage: { type: 'string', description: 'Dosage instructions' },
+                frequency: { type: 'string', description: 'Frequency of administration' },
+              },
+            },
+          },
+        },
+      },
+    }, null, 2),
+    categories: JSON.stringify([
+      { name: 'Medical_Claim', 'description/Note': 'Health insurance claim form', pattern_keywords: ['claim', 'diagnosis', 'procedure', 'insurance'] },
+      { name: 'Lab_Report', 'description/Note': 'Laboratory test results', pattern_keywords: ['lab', 'test', 'results', 'specimen'] },
+      { name: 'Prescription', 'description/Note': 'Medication prescription', pattern_keywords: ['prescription', 'medication', 'rx', 'pharmacy'] },
+    ], null, 2),
+  },
+};
+
 interface FileUploadAreaProps {
   onWorkflowStart: (instanceId: string) => void;
 }
@@ -81,6 +191,27 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
     }
   };
 
+  const handleSelectTemplate = (templateKey: string) => {
+    const template = SCHEMA_TEMPLATES[templateKey];
+    if (!template) return;
+    setSchemaJson(template.schema);
+    setCategoriesJson(template.categories);
+    setUseCustomCategories(true);
+    setSchemaError(null);
+    setSchemaValid(null);
+    // Auto-validate after a tick
+    setTimeout(async () => {
+      try {
+        const parsed = JSON.parse(template.schema);
+        const result = await validateSchema.mutateAsync(parsed);
+        if (result.valid) {
+          setSchemaValid(true);
+          setToast({ message: `${template.label} template loaded: ${result.field_count} fields`, type: 'success' });
+        }
+      } catch { /* ignore */ }
+    }, 100);
+  };
+
   const startWorkflowWithBlob = async (blobPath: string, domainId: DomainId) => {
     try {
       setToast({ message: 'Starting workflow...', type: 'info' });
@@ -100,7 +231,7 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
       });
 
       // Initialize workflow store
-      initializeWorkflow(workflowResponse.instanceId, domainId);
+      initializeWorkflow(workflowResponse.instanceId, domainId, llmProvider, llmModel || undefined);
 
       // Sync any missed state
       await signalR.syncStatus(workflowResponse.instanceId);
@@ -231,6 +362,13 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
         </button>
       </div>
 
+      {!showAdvanced && llmProvider === 'azure_openai' && !useCustomSchema && !useCustomCategories && (
+        <p className="text-xs text-dark-500 flex items-center gap-1.5 -mt-3">
+          <span>💡</span>
+          <span>Try switching LLM providers or providing a custom schema for ad-hoc document processing</span>
+        </p>
+      )}
+
       {showAdvanced && (
         <div className="space-y-5 rounded-lg border border-dark-700 bg-dark-800/50 p-4">
           {/* LLM Provider Selector */}
@@ -319,9 +457,22 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
             </div>
             {useCustomSchema && (
               <div className="space-y-2">
-                <p className="text-xs text-dark-500">
-                  Provide a JSON schema with <code className="text-dark-400">fieldSchema.fields</code> to extract custom fields.
+                <p className="text-xs text-dark-500 mb-1">
+                  Quick-fill a template or write your own schema:
                 </p>
+                <div className="flex gap-2 mb-2">
+                  {Object.entries(SCHEMA_TEMPLATES).map(([key, tmpl]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => handleSelectTemplate(key)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-dark-700 border border-dark-600 text-dark-300 hover:text-dark-100 hover:border-primary/50 hover:bg-primary/10 transition-all text-xs"
+                    >
+                      <span>{tmpl.icon}</span>
+                      <span>{tmpl.label}</span>
+                    </button>
+                  ))}
+                </div>
                 <textarea
                   value={schemaJson}
                   onChange={(e) => { setSchemaJson(e.target.value); setSchemaError(null); setSchemaValid(null); }}

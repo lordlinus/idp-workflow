@@ -20,7 +20,6 @@ import {
 
 class SignalRClient {
   private connection: signalR.HubConnection | null = null;
-  private currentInstanceId: string | null = null;
   private isConnecting = false;
 
   async negotiate(): Promise<{ url: string; accessToken: string }> {
@@ -61,44 +60,11 @@ class SignalRClient {
     }
   }
 
-  async subscribe(instanceId: string): Promise<void> {
-    if (!this.connection) {
-      await this.connect();
-    }
-
-    if (!this.connection) {
-      throw new Error('Failed to establish SignalR connection');
-    }
-
-    this.currentInstanceId = instanceId;
-
-    try {
-      await apiClient.subscribe(instanceId, this.connection.connectionId || '');
-    } catch (error) {
-      console.error('Failed to subscribe to workflow:', error);
-      throw error;
-    }
-  }
-
-  async unsubscribe(): Promise<void> {
-    if (!this.connection || !this.currentInstanceId) {
-      return;
-    }
-
-    try {
-      await apiClient.unsubscribe(this.currentInstanceId, this.connection.connectionId || '');
-      this.currentInstanceId = null;
-    } catch (error) {
-      console.error('Failed to unsubscribe from workflow:', error);
-    }
-  }
-
   async disconnect(): Promise<void> {
     if (this.connection?.state === signalR.HubConnectionState.Connected) {
       await this.connection.stop();
     }
     this.connection = null;
-    this.currentInstanceId = null;
     useUIStore.setState({ connectionStatus: 'disconnected' });
   }
 
@@ -109,15 +75,12 @@ class SignalRClient {
   private attachEventHandlers(): void {
     if (!this.connection) return;
 
-    // Helper to filter events by current instance
-    const isCurrentInstance = (instanceId: string): boolean => {
-      return this.currentInstanceId === instanceId;
-    };
+    // User-targeted messaging: all messages received are already for this user,
+    // no need to filter by instanceId.
 
-    // Step Started - SignalR passes arguments directly, not wrapped in message object
+    // Step Started
     this.connection.on('stepStarted', (arg: { data: StepStartedData; timestamp: string; instanceId: string }) => {
       console.log('stepStarted received:', arg);
-      if (!isCurrentInstance(arg.instanceId)) return;
       const { data, timestamp } = arg;
       useWorkflowStore.getState().updateStep(data.stepName as StepName, {
         status: 'running' as StepStatus,
@@ -130,13 +93,12 @@ class SignalRClient {
     // Step Completed
     this.connection.on('stepCompleted', (arg: { data: StepCompletedData; timestamp: string; instanceId: string }) => {
       console.log('stepCompleted received:', arg);
-      if (!isCurrentInstance(arg.instanceId)) return;
       const { data, timestamp } = arg;
       useWorkflowStore.getState().updateStep(data.stepName as StepName, {
         status: 'completed' as StepStatus,
         durationMs: data.durationMs,
         outputPreview: data.outputPreview,
-        outputData: data.outputData, // Store full output data for detail view
+        outputData: data.outputData,
       });
       useEventsStore.getState().addEvent('stepCompleted', data, timestamp);
     });
@@ -144,7 +106,6 @@ class SignalRClient {
     // Step Failed
     this.connection.on('stepFailed', (arg: { data: StepFailedData; timestamp: string; instanceId: string }) => {
       console.log('stepFailed received:', arg);
-      if (!isCurrentInstance(arg.instanceId)) return;
       const { data, timestamp } = arg;
       useWorkflowStore.getState().updateStep(data.stepName as StepName, {
         status: 'failed' as StepStatus,
@@ -161,7 +122,6 @@ class SignalRClient {
     // HITL Waiting
     this.connection.on('hitlWaiting', (arg: { data: HITLWaitingData; timestamp: string; instanceId: string }) => {
       console.log('hitlWaiting received:', arg);
-      if (!isCurrentInstance(arg.instanceId)) return;
       const { data, timestamp } = arg;
       useWorkflowStore.getState().setHITLWaiting(data);
       useUIStore.getState().setShowHITLModal(true);
@@ -171,7 +131,6 @@ class SignalRClient {
     // HITL Approved
     this.connection.on('hitlApproved', (arg: { data: HITLApprovedData; timestamp: string; instanceId: string }) => {
       console.log('hitlApproved received:', arg);
-      if (!isCurrentInstance(arg.instanceId)) return;
       const { data, timestamp } = arg;
       useWorkflowStore.getState().setHITLApproved(data.feedback);
       useUIStore.getState().setShowHITLModal(false);
@@ -181,7 +140,6 @@ class SignalRClient {
     // HITL Rejected
     this.connection.on('hitlRejected', (arg: { data: HITLRejectedData; timestamp: string; instanceId: string }) => {
       console.log('hitlRejected received:', arg);
-      if (!isCurrentInstance(arg.instanceId)) return;
       const { data, timestamp } = arg;
       useWorkflowStore.getState().setHITLRejected(data.feedback);
       useUIStore.getState().setShowHITLModal(false);
@@ -191,14 +149,12 @@ class SignalRClient {
     // Reasoning Chunk
     this.connection.on('reasoningChunk', (arg: { data: ReasoningChunkData; timestamp: string; instanceId: string }) => {
       console.log('reasoningChunk received:', arg);
-      if (!isCurrentInstance(arg.instanceId)) return;
       const { data, timestamp } = arg;
       const chunk = {
         ...data,
         timestamp,
       };
       useReasoningStore.getState().addChunk(chunk);
-      useUIStore.getState().setShowReasoningPanel(true);
 
       if (data.chunkType === 'final') {
         useReasoningStore.getState().setComplete(true);
@@ -210,7 +166,6 @@ class SignalRClient {
     // Workflow Completed
     this.connection.on('workflowCompleted', (arg: { data: WorkflowCompletedData; timestamp: string; instanceId: string }) => {
       console.log('workflowCompleted received:', arg);
-      if (!isCurrentInstance(arg.instanceId)) return;
       const { data, timestamp } = arg;
       useWorkflowStore.getState().setStatus('completed');
       useEventsStore.getState().addEvent('workflowCompleted', data, timestamp);
@@ -223,7 +178,6 @@ class SignalRClient {
     // Workflow Failed
     this.connection.on('workflowFailed', (arg: { data: { error: string }; timestamp: string; instanceId: string }) => {
       console.log('workflowFailed received:', arg);
-      if (!isCurrentInstance(arg.instanceId)) return;
       const { data, timestamp } = arg;
       useWorkflowStore.getState().setStatus('failed');
       useEventsStore.getState().addEvent('workflowFailed', data, timestamp);
@@ -241,9 +195,6 @@ class SignalRClient {
 
     this.connection.onreconnected(async () => {
       useUIStore.setState({ connectionStatus: 'connected' });
-      if (this.currentInstanceId) {
-        await this.subscribe(this.currentInstanceId);
-      }
       console.log('SignalR reconnected');
     });
 
@@ -256,15 +207,104 @@ class SignalRClient {
 
 export const signalRClient = new SignalRClient();
 
+// Step display names for status sync
+const STEP_DISPLAY_NAMES: Record<string, string> = {
+  step_01_pdf_extraction: 'PDF Extractor',
+  step_02_classification: 'Document Classifier',
+  step_03_01_azure_extraction: 'Azure Document Intelligence',
+  step_03_02_dspy_extraction: 'DSPy LLM Extractor',
+  step_04_comparison: 'Field Comparator',
+  step_05_human_review: 'Human Review',
+  step_06_reasoning_agent: 'Reasoning Agent',
+};
+
+// Ordered steps for inferring completed steps from custom status
+const STEP_ORDER: StepName[] = [
+  'step_01_pdf_extraction',
+  'step_02_classification',
+  'step_03_01_azure_extraction',
+  'step_03_02_dspy_extraction',
+  'step_04_comparison',
+  'step_05_human_review',
+  'step_06_reasoning_agent',
+];
+
 /**
- * Hook for SignalR operations
+ * Sync workflow state from the backend status endpoint.
+ * Catches up on any events missed before SignalR connection.
+ */
+async function syncWorkflowStatus(instanceId: string): Promise<void> {
+  try {
+    const status = await apiClient.getWorkflowStatus(instanceId);
+    const customStatus = status.customStatus || '';
+
+    // Infer which step is currently running from customStatus string
+    // Format: "[request_id] Step N: description"
+    const stepMatch = customStatus.match(/Step (\d+)/);
+    const currentStepNum = stepMatch ? parseInt(stepMatch[1]) : 0;
+
+    // Mark steps before the current one as completed (they must have finished)
+    const store = useWorkflowStore.getState();
+
+    // Map step numbers to step names (accounting for parallel steps 3a/3b)
+    const stepNumToNames: Record<number, StepName[]> = {
+      1: ['step_01_pdf_extraction'],
+      2: ['step_02_classification'],
+      3: ['step_03_01_azure_extraction', 'step_03_02_dspy_extraction'],
+      4: ['step_04_comparison'],
+      5: ['step_05_human_review'],
+      6: ['step_06_reasoning_agent'],
+    };
+
+    for (let n = 1; n < currentStepNum; n++) {
+      const names = stepNumToNames[n] || [];
+      for (const name of names) {
+        const existing = store.steps.get(name);
+        if (!existing || existing.status === 'pending') {
+          store.updateStep(name, {
+            status: 'completed' as StepStatus,
+            displayName: STEP_DISPLAY_NAMES[name] || name,
+          });
+        }
+      }
+    }
+
+    // Mark current step as running if not already tracked
+    const currentNames = stepNumToNames[currentStepNum] || [];
+    for (const name of currentNames) {
+      const existing = store.steps.get(name);
+      if (!existing || existing.status === 'pending') {
+        store.updateStep(name, {
+          status: 'running' as StepStatus,
+          displayName: STEP_DISPLAY_NAMES[name] || name,
+        });
+      }
+    }
+
+    // If workflow completed, apply final output
+    if (status.runtimeStatus === 'Completed' && status.output) {
+      store.setStatus('completed');
+    } else if (status.runtimeStatus === 'Failed') {
+      store.setStatus('failed');
+    } else {
+      store.setStatus('running');
+    }
+
+    console.log(`Status synced: step ${currentStepNum}, status=${status.runtimeStatus}`);
+  } catch (error) {
+    console.warn('Failed to sync workflow status (non-fatal):', error);
+  }
+}
+
+/**
+ * Hook for SignalR operations.
+ * Uses user-targeted messaging — no subscribe/unsubscribe needed.
  */
 export function useSignalR() {
   return {
     connect: () => signalRClient.connect(),
     disconnect: () => signalRClient.disconnect(),
-    subscribe: (instanceId: string) => signalRClient.subscribe(instanceId),
-    unsubscribe: () => signalRClient.unsubscribe(),
     isConnected: () => signalRClient.isConnected(),
+    syncStatus: (instanceId: string) => syncWorkflowStatus(instanceId),
   };
 }

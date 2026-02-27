@@ -22,10 +22,11 @@ interface WorkflowState {
   currentStep: number;
   steps: Map<StepName, Step>;
   startedAt: string | null;
+  llmProvider: string | null;
+  llmModel: string | null;
 
   // UI state
   selectedStep: StepName | null;
-  sidebarCollapsed: boolean;
 
   // HITL state
   hitlWaiting: HITLWaitingData | null;
@@ -33,13 +34,11 @@ interface WorkflowState {
   hitlFeedback: string | null;
 
   // Actions
-  initializeWorkflow: (instanceId: string, domain_id: DomainId) => void;
+  initializeWorkflow: (instanceId: string, domain_id: DomainId, llmProvider?: string, llmModel?: string) => void;
   setStatus: (status: WorkflowState['status']) => void;
   updateStep: (stepName: StepName, updates: Partial<Step>) => void;
   setCurrentStep: (stepNumber: number) => void;
   selectStep: (stepName: StepName | null) => void;
-  toggleSidebar: () => void;
-  setSidebarCollapsed: (collapsed: boolean) => void;
   setHITLWaiting: (data: HITLWaitingData) => void;
   setHITLApproved: (feedback?: string) => void;
   setHITLRejected: (feedback?: string) => void;
@@ -53,8 +52,9 @@ const initialState = {
   currentStep: 0,
   steps: new Map<StepName, Step>(),
   startedAt: null,
+  llmProvider: null,
+  llmModel: null,
   selectedStep: null,
-  sidebarCollapsed: true,
   hitlWaiting: null,
   hitlStatus: null,
   hitlFeedback: null,
@@ -64,12 +64,14 @@ export const useWorkflowStore = create<WorkflowState>()(
   immer((set) => ({
     ...initialState,
 
-    initializeWorkflow: (instanceId: string, domain_id: DomainId) => {
+    initializeWorkflow: (instanceId: string, domain_id: DomainId, llmProvider?: string, llmModel?: string) => {
       set((state) => {
         state.instanceId = instanceId;
         state.domain_id = domain_id;
         state.status = 'initializing';
         state.startedAt = new Date().toISOString();
+        state.llmProvider = llmProvider || null;
+        state.llmModel = llmModel || null;
       });
     },
 
@@ -106,18 +108,6 @@ export const useWorkflowStore = create<WorkflowState>()(
     selectStep: (stepName: StepName | null) => {
       set((state) => {
         state.selectedStep = stepName;
-      });
-    },
-
-    toggleSidebar: () => {
-      set((state) => {
-        state.sidebarCollapsed = !state.sidebarCollapsed;
-      });
-    },
-
-    setSidebarCollapsed: (collapsed: boolean) => {
-      set((state) => {
-        state.sidebarCollapsed = collapsed;
       });
     },
 

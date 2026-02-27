@@ -6,8 +6,6 @@ interface UIState {
   setConnectionStatus: (status: ConnectionStatus) => void;
   showHITLModal: boolean;
   setShowHITLModal: (show: boolean) => void;
-  showReasoningPanel: boolean;
-  setShowReasoningPanel: (show: boolean) => void;
   toast: { message: string; type: 'success' | 'error' | 'info' } | null;
   setToast: (toast: UIState['toast']) => void;
   clearToast: () => void;
@@ -19,9 +17,6 @@ export const useUIStore = create<UIState>((set) => ({
 
   showHITLModal: false,
   setShowHITLModal: (show: boolean) => set({ showHITLModal: show }),
-
-  showReasoningPanel: false,
-  setShowReasoningPanel: (show: boolean) => set({ showReasoningPanel: show }),
 
   toast: null,
   setToast: (toast) => set({ toast }),

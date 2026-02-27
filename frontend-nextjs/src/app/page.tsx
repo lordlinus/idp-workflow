@@ -6,45 +6,34 @@ import { useUIStore } from '@/store/uiStore';
 import { Toast } from '@/components/Toast';
 import { ConnectionIndicator } from '@/components/ConnectionIndicator';
 import { FileUploadArea } from '@/components/FileUploadArea';
-import { WorkflowDiagram } from '@/components/WorkflowDiagram';
 import { HITLReviewPanel } from '@/components/HITLReviewPanel';
 import { DetailPanel } from '@/components/DetailPanel';
-import { HistorySidebar } from '@/components/HistorySidebar';
 import clsx from 'clsx';
+
+import { WorkflowDiagram } from '@/components/WorkflowDiagram';
 
 export default function Page() {
   const [currentPage, setCurrentPage] = React.useState<'upload' | 'execution'>('upload');
-  const [detailsExpanded, setDetailsExpanded] = React.useState(true);
+  const [isTransitioning, setIsTransitioning] = React.useState(false);
   const instanceId = useWorkflowStore((state) => state.instanceId);
-  const selectedStep = useWorkflowStore((state) => state.selectedStep);
   const toast = useUIStore((state) => state.toast);
   const clearToast = useUIStore((state) => state.clearToast);
   const reset = useWorkflowStore((state) => state.reset);
-  const sidebarCollapsed = useWorkflowStore((state) => state.sidebarCollapsed);
-  const toggleSidebar = useWorkflowStore((state) => state.toggleSidebar);
 
   const handleWorkflowStart = (id: string) => {
-    // Store user info for history filtering
     const now = new Date().toISOString();
     document.cookie = `lastUploadUser=${encodeURIComponent(now)}; path=/; max-age=2592000`;
-    setCurrentPage('execution');
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setIsTransitioning(false);
+      setCurrentPage('execution');
+    }, 1200);
   };
 
   const handleReset = () => {
     reset();
     setCurrentPage('upload');
   };
-
-  const handleHistoryLoad = (loadedInstanceId: string) => {
-    setCurrentPage('execution');
-  };
-
-  // Auto-expand details when a step is selected
-  React.useEffect(() => {
-    if (selectedStep) {
-      setDetailsExpanded(true);
-    }
-  }, [selectedStep]);
 
   return (
     <div className="h-screen flex flex-col bg-dark-900 overflow-hidden">
@@ -63,21 +52,12 @@ export default function Page() {
             <ConnectionIndicator />
 
             {currentPage === 'execution' && (
-              <>
-                <button
-                  onClick={toggleSidebar}
-                  className="btn-secondary text-sm flex items-center gap-2"
-                  title={sidebarCollapsed ? 'Show History' : 'Hide History'}
-                >
-                  {sidebarCollapsed ? '📋 Show History' : '◀ Hide History'}
-                </button>
-                <button
-                  onClick={handleReset}
-                  className="btn-secondary text-sm"
-                >
-                  ↺ New Workflow
-                </button>
-              </>
+              <button
+                onClick={handleReset}
+                className="btn-secondary text-sm"
+              >
+                ↺ New Workflow
+              </button>
             )}
           </div>
         </div>
@@ -85,31 +65,36 @@ export default function Page() {
 
       {/* Main Content */}
       <main className="flex-1 px-4 py-4 overflow-hidden">
-        {currentPage === 'upload' ? (
+        {isTransitioning ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center animate-pulse">
+              <span className="text-5xl block mb-4">🚀</span>
+              <p className="text-xl font-bold text-dark-50 mb-2">Initializing Workflow</p>
+              <p className="text-sm text-dark-400">Connecting to AI pipeline...</p>
+              <div className="mt-4 flex justify-center">
+                <div className="h-1 w-48 bg-dark-700 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full animate-[loading_1.2s_ease-in-out_infinite]" 
+                    style={{ width: '60%', animation: 'loading 1.2s ease-in-out infinite' }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : currentPage === 'upload' ? (
           /* Upload Page */
-          <div className="max-w-2xl mx-auto">
-            <div className="mb-8">
-              <h2 className="text-3xl font-bold text-dark-50 mb-2">Get Started</h2>
-              <p className="text-dark-400">Upload a document to begin the intelligent processing workflow</p>
+          <div className="max-w-2xl mx-auto pt-8">
+            <div className="mb-8 text-center">
+              <h2 className="text-3xl font-bold text-dark-50 mb-3">Intelligent Document Processing</h2>
+              <p className="text-dark-400 max-w-lg mx-auto">
+                Upload a document to run the 6-step AI pipeline: extract, classify, compare, review, and reason.
+              </p>
             </div>
             <FileUploadArea onWorkflowStart={handleWorkflowStart} />
           </div>
         ) : (
-          /* Execution Page - Three-column layout */
+          /* Execution Page - Two-column layout */
           <div className="flex gap-3 h-full">
-            {/* Left: History Sidebar (Collapsible) */}
-            <div
-              className={clsx(
-                'transition-all duration-300 overflow-hidden flex-shrink-0',
-                sidebarCollapsed ? 'w-0' : 'w-64'
-              )}
-            >
-              <div className="w-64 h-full rounded-lg border border-dark-700 bg-dark-800 overflow-hidden">
-                <HistorySidebar onHistoryLoad={handleHistoryLoad} />
-              </div>
-            </div>
-
-            {/* Center: Workflow Diagram (Main focus) */}
+            {/* Center: Workflow Diagram */}
             <div className="flex-1 min-w-0 flex flex-col">
               <div className="rounded-lg border border-dark-700 bg-dark-800 flex-1 flex flex-col overflow-hidden shadow-lg">
                 {/* Header */}
@@ -127,16 +112,9 @@ export default function Page() {
               </div>
             </div>
 
-            {/* Right: Detail Panel (Collapsible based on selection) */}
-            <div
-              className={clsx(
-                'transition-all duration-300 overflow-hidden flex-shrink-0',
-                selectedStep && detailsExpanded ? 'w-96' : 'w-0'
-              )}
-            >
-              <div className="w-96 h-full rounded-lg border border-dark-700 bg-dark-800 overflow-hidden shadow-lg">
-                <DetailPanel />
-              </div>
+            {/* Right: Detail Panel (always visible) */}
+            <div className="w-[420px] flex-shrink-0">
+              <DetailPanel />
             </div>
           </div>
         )}

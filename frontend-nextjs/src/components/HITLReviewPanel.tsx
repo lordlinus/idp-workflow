@@ -13,6 +13,8 @@ export function HITLReviewPanel() {
   const showModal = useUIStore((state) => state.showHITLModal);
   const setShowModal = useUIStore((state) => state.setShowHITLModal);
   const setToast = useUIStore((state) => state.setToast);
+  const llmProvider = useWorkflowStore((state) => state.llmProvider);
+  const llmModel = useWorkflowStore((state) => state.llmModel);
 
   const submitHITL = useSubmitHITLReview();
 
@@ -312,7 +314,7 @@ export function HITLReviewPanel() {
                             disabled={isSubmitting}
                             className="accent-purple-500"
                           />
-                          <span className="text-sm font-medium text-purple-300">DSPy</span>
+                          <span className="text-sm font-medium text-purple-300">DSPy{llmProvider && llmProvider !== 'azure_openai' ? ` (${llmModel || llmProvider})` : ''}</span>
                         </label>
                         <p className="text-sm text-dark-50 break-words">{field.dspyValue}</p>
                       </div>
