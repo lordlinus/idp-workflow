@@ -160,6 +160,46 @@ export interface WorkflowCompletedData {
   resultUrl: string;
 }
 
+// LLM Provider Types
+export type LLMProvider = 'azure_openai' | 'openai' | 'openrouter';
+
+export interface WorkflowOptions {
+  llm_provider?: LLMProvider;
+  llm_model?: string;
+  llm_temperature?: number;
+  [key: string]: unknown;
+}
+
+// Extraction Schema Types
+export interface ExtractionFieldDef {
+  type: 'string' | 'number' | 'integer' | 'date' | 'boolean' | 'array' | 'object';
+  description?: string;
+  method?: string;
+  category?: string;
+  items?: ExtractionFieldDef;
+  properties?: Record<string, ExtractionFieldDef>;
+}
+
+export interface ExtractionSchema {
+  fieldSchema: {
+    fields: Record<string, ExtractionFieldDef>;
+  };
+  baseAnalyzerId?: string;
+  scenario?: string;
+  description?: string;
+  config?: Record<string, unknown>;
+  models?: Record<string, string>;
+}
+
+export interface ClassificationCategory {
+  name: string;
+  'description/Note'?: string;
+  description?: string;
+  pattern_keywords?: string[];
+  required?: boolean;
+  extraction_priority?: number;
+}
+
 // API Types
 export interface UploadResponse {
   blobPath: string;
@@ -169,8 +209,11 @@ export interface UploadResponse {
 
 export interface StartWorkflowRequest {
   pdf_path: string;
-  domain_id: DomainId;
+  domain_id: DomainId | string;
   max_pages?: number;
+  options?: WorkflowOptions;
+  custom_extraction_schema?: ExtractionSchema;
+  custom_classification_categories?: ClassificationCategory[];
 }
 
 export interface StartWorkflowResponse {
@@ -179,27 +222,32 @@ export interface StartWorkflowResponse {
   request_id: string;
 }
 
-export interface HistoryItem {
-  instanceId: string;
-  domain_id: DomainId;
-  status: 'Completed' | 'Pending' | 'Failed';
-  input: {
-    pdf_path: string;
-    domain_id: DomainId;
-  };
-  output?: {
-    summary?: {
-      document_type: string;
-      confidence_score: number;
-    };
-  };
-  createdTime: string;
-  lastUpdatedTime: string;
+export interface SchemaValidationResponse {
+  valid: boolean;
+  errors?: string[];
+  fields?: Array<{ name: string; type: string; description: string }>;
+  field_count?: number;
 }
 
-export interface HistoryResponse {
-  instances: HistoryItem[];
-  nextPageLink?: string;
+export interface LLMProviderInfo {
+  id: LLMProvider;
+  name: string;
+  description: string;
+  requires_env: string[];
+  shorthand_models?: Record<string, string>;
+}
+
+export interface LLMProvidersResponse {
+  providers: LLMProviderInfo[];
+}
+
+export interface WorkflowStatusResponse {
+  instanceId: string;
+  runtimeStatus: string;
+  customStatus: string | null;
+  output: Record<string, unknown> | null;
+  createdTime: string | null;
+  lastUpdatedTime: string | null;
 }
 
 // Event Log

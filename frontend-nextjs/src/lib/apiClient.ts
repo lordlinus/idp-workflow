@@ -3,12 +3,29 @@ import {
   UploadResponse,
   StartWorkflowRequest,
   StartWorkflowResponse,
-  HistoryResponse,
+  WorkflowStatusResponse,
   HITLReviewSubmission,
   DomainId,
+  ExtractionSchema,
+  SchemaValidationResponse,
+  LLMProvidersResponse,
 } from '@/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:7071/api';
+
+/**
+ * Get or create a persistent user ID for SignalR user-targeted messaging.
+ * Stored in sessionStorage so it persists across page refreshes within a tab.
+ */
+function getUserId(): string {
+  if (typeof window === 'undefined') return '';
+  let userId = sessionStorage.getItem('userId');
+  if (!userId) {
+    userId = 'user-' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+    sessionStorage.setItem('userId', userId);
+  }
+  return userId;
+}
 
 class APIClient {
   private client: AxiosInstance;
@@ -20,6 +37,13 @@ class APIClient {
         'Content-Type': 'application/json',
       },
     });
+  }
+
+  /**
+   * Get the current user ID for SignalR targeting.
+   */
+  getUserId(): string {
+    return getUserId();
   }
 
   /**
@@ -50,47 +74,20 @@ class APIClient {
    * Start a new workflow
    */
   async startWorkflow(request: StartWorkflowRequest): Promise<StartWorkflowResponse> {
-    const response = await this.client.post<StartWorkflowResponse>('/idp/start', request);
+    const response = await this.client.post<StartWorkflowResponse>('/idp/start', request, {
+      headers: { 'x-user-id': getUserId() },
+    });
     return response.data;
   }
 
   /**
-   * Get workflow history with filtering
-   */
-  async getHistory(limit: number = 20, status?: string): Promise<HistoryResponse> {
-    const params: Record<string, unknown> = { limit };
-    if (status) {
-      params.status = status;
-    }
-
-    const response = await this.client.get<HistoryResponse>('/idp/history', { params });
-    return response.data;
-  }
-
-  /**
-   * Get SignalR negotiation token
+   * Get SignalR negotiation token (user-targeted)
    */
   async negotiate(): Promise<{ url: string; accessToken: string }> {
-    const response = await this.client.post<{ url: string; accessToken: string }>('/idp/negotiate');
+    const response = await this.client.post<{ url: string; accessToken: string }>('/idp/negotiate', null, {
+      headers: { 'x-user-id': getUserId() },
+    });
     return response.data;
-  }
-
-  /**
-   * Subscribe to workflow updates
-   */
-  async subscribe(instanceId: string, connectionId: string): Promise<void> {
-    await this.client.post(`/idp/subscribe/${instanceId}`, null, {
-      headers: { 'x-signalr-connection-id': connectionId },
-    });
-  }
-
-  /**
-   * Unsubscribe from workflow updates
-   */
-  async unsubscribe(instanceId: string, connectionId: string): Promise<void> {
-    await this.client.post(`/idp/unsubscribe/${instanceId}`, null, {
-      headers: { 'x-signalr-connection-id': connectionId },
-    });
   }
 
   /**
@@ -98,6 +95,45 @@ class APIClient {
    */
   async submitHITLReview(instanceId: string, review: HITLReviewSubmission): Promise<void> {
     await this.client.post(`/idp/hitl/review/${instanceId}`, review);
+  }
+
+  /**
+   * Get current workflow status (for catching up after SignalR connection)
+   */
+  async getWorkflowStatus(instanceId: string): Promise<WorkflowStatusResponse> {
+    const response = await this.client.get<WorkflowStatusResponse>(
+      `/idp/workflow/${instanceId}/status`
+    );
+    return response.data;
+  }
+
+  /**
+   * Get domain configuration including extraction schema
+   */
+  async getDomainConfig(domainId: DomainId): Promise<Record<string, unknown>> {
+    const response = await this.client.get<Record<string, unknown>>(
+      `/idp/domains/${domainId}/config`
+    );
+    return response.data;
+  }
+
+  /**
+   * Validate an ad-hoc extraction schema
+   */
+  async validateSchema(schema: ExtractionSchema): Promise<SchemaValidationResponse> {
+    const response = await this.client.post<SchemaValidationResponse>(
+      '/idp/validate-schema',
+      { schema }
+    );
+    return response.data;
+  }
+
+  /**
+   * Get available LLM providers and models
+   */
+  async getLLMProviders(): Promise<LLMProvidersResponse> {
+    const response = await this.client.get<LLMProvidersResponse>('/idp/llm-providers');
+    return response.data;
   }
 }
 

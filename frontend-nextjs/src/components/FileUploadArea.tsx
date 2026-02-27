@@ -1,10 +1,10 @@
 import React, { useRef } from 'react';
-import { useUploadPDF, useStartWorkflow, useDemoDocument } from '@/lib/queryKeys';
+import { useUploadPDF, useStartWorkflow, useDemoDocument, useValidateSchema } from '@/lib/queryKeys';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useUIStore } from '@/store/uiStore';
 import { useSignalR } from '@/lib/signalrClient';
 import { DOMAIN_CONFIG } from '@/lib/utils';
-import { DomainId } from '@/types';
+import { DomainId, LLMProvider, ExtractionSchema, ClassificationCategory, WorkflowOptions } from '@/types';
 import clsx from 'clsx';
 
 interface FileUploadAreaProps {
@@ -15,6 +15,15 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
   const [selectedDomain, setSelectedDomain] = React.useState<DomainId>('insurance_claims');
   const [isDragging, setIsDragging] = React.useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showAdvanced, setShowAdvanced] = React.useState(false);
+  const [llmProvider, setLlmProvider] = React.useState<LLMProvider>('azure_openai');
+  const [llmModel, setLlmModel] = React.useState('');
+  const [useCustomSchema, setUseCustomSchema] = React.useState(false);
+  const [schemaJson, setSchemaJson] = React.useState('');
+  const [schemaError, setSchemaError] = React.useState<string | null>(null);
+  const [schemaValid, setSchemaValid] = React.useState<boolean | null>(null);
+  const [useCustomCategories, setUseCustomCategories] = React.useState(false);
+  const [categoriesJson, setCategoriesJson] = React.useState('');
 
   const uploadPDF = useUploadPDF();
   const startWorkflow = useStartWorkflow();
@@ -22,22 +31,79 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
   const initializeWorkflow = useWorkflowStore((state) => state.initializeWorkflow);
   const setToast = useUIStore((state) => state.setToast);
   const signalR = useSignalR();
+  const validateSchema = useValidateSchema();
+
+  const buildWorkflowOptions = (): { options?: WorkflowOptions; custom_extraction_schema?: ExtractionSchema; custom_classification_categories?: ClassificationCategory[] } => {
+    const result: { options?: WorkflowOptions; custom_extraction_schema?: ExtractionSchema; custom_classification_categories?: ClassificationCategory[] } = {};
+    
+    // LLM provider options
+    if (llmProvider !== 'azure_openai' || llmModel) {
+      result.options = {
+        llm_provider: llmProvider,
+        ...(llmModel ? { llm_model: llmModel } : {}),
+      };
+    }
+    
+    // Custom schema
+    if (useCustomSchema && schemaJson.trim()) {
+      try {
+        result.custom_extraction_schema = JSON.parse(schemaJson);
+      } catch { /* validated elsewhere */ }
+    }
+    
+    // Custom categories
+    if (useCustomCategories && categoriesJson.trim()) {
+      try {
+        result.custom_classification_categories = JSON.parse(categoriesJson);
+      } catch { /* user will see JSON error */ }
+    }
+    
+    return result;
+  };
+
+  const handleValidateSchema = async () => {
+    setSchemaError(null);
+    setSchemaValid(null);
+    try {
+      const parsed = JSON.parse(schemaJson);
+      const result = await validateSchema.mutateAsync(parsed);
+      if (result.valid) {
+        setSchemaValid(true);
+        setSchemaError(null);
+        setToast({ message: `Schema valid: ${result.field_count} fields`, type: 'success' });
+      } else {
+        setSchemaValid(false);
+        setSchemaError(result.errors?.join('; ') || 'Invalid schema');
+      }
+    } catch (e) {
+      setSchemaValid(false);
+      setSchemaError(e instanceof SyntaxError ? 'Invalid JSON syntax' : (e instanceof Error ? e.message : 'Validation failed'));
+    }
+  };
 
   const startWorkflowWithBlob = async (blobPath: string, domainId: DomainId) => {
     try {
-      // Start workflow
       setToast({ message: 'Starting workflow...', type: 'info' });
+
+      // Connect SignalR FIRST (before starting workflow to minimize race window)
+      // User-targeted messaging: no subscribe needed — the negotiate binds userId
+      if (!signalR.isConnected()) {
+        await signalR.connect();
+      }
+
+      // Start workflow
+      const advancedOptions = buildWorkflowOptions();
       const workflowResponse = await startWorkflow.mutateAsync({
         pdf_path: blobPath,
         domain_id: domainId,
+        ...advancedOptions,
       });
 
       // Initialize workflow store
       initializeWorkflow(workflowResponse.instanceId, domainId);
 
-      // Connect SignalR
-      await signalR.connect();
-      await signalR.subscribe(workflowResponse.instanceId);
+      // Sync any missed state
+      await signalR.syncStatus(workflowResponse.instanceId);
 
       // Store instanceId in cookie for history
       document.cookie = `lastInstanceId=${workflowResponse.instanceId}; path=/; max-age=2592000`;
@@ -149,6 +215,175 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
           ))}
         </div>
       </div>
+
+      {/* Advanced Options Toggle */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="flex items-center gap-2 text-sm text-dark-400 hover:text-dark-200 transition-colors"
+        >
+          <span className="text-xs">{showAdvanced ? '▼' : '▶'}</span>
+          <span>Advanced Options</span>
+          {(llmProvider !== 'azure_openai' || useCustomSchema || useCustomCategories) && (
+            <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">Active</span>
+          )}
+        </button>
+      </div>
+
+      {showAdvanced && (
+        <div className="space-y-5 rounded-lg border border-dark-700 bg-dark-800/50 p-4">
+          {/* LLM Provider Selector */}
+          <div>
+            <label className="block text-sm font-medium text-dark-300 mb-2">
+              LLM Provider (for DSPy extraction &amp; classification)
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                { id: 'azure_openai' as LLMProvider, label: 'Azure OpenAI', icon: '☁️' },
+                { id: 'openai' as LLMProvider, label: 'OpenAI', icon: '🔮' },
+                { id: 'openrouter' as LLMProvider, label: 'OpenRouter', icon: '🌐' },
+              ]).map((provider) => (
+                <button
+                  key={provider.id}
+                  type="button"
+                  onClick={() => { setLlmProvider(provider.id); setLlmModel(''); }}
+                  disabled={isLoading}
+                  className={clsx(
+                    'p-3 rounded-lg border text-center transition-all text-sm',
+                    llmProvider === provider.id
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-dark-700 bg-dark-900 text-dark-300 hover:border-dark-500'
+                  )}
+                >
+                  <span className="text-lg block mb-1">{provider.icon}</span>
+                  {provider.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Model selector for OpenRouter */}
+            {llmProvider === 'openrouter' && (
+              <div className="mt-3">
+                <label className="block text-xs text-dark-400 mb-1">Model (shorthand or full path)</label>
+                <select
+                  value={llmModel}
+                  onChange={(e) => setLlmModel(e.target.value)}
+                  className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-sm text-dark-200 focus:border-primary focus:outline-none"
+                >
+                  <option value="">Default (Qwen 2.5 72B)</option>
+                  <option value="qwen">Qwen 2.5 72B Instruct</option>
+                  <option value="qwen3">Qwen 3 235B</option>
+                  <option value="deepseek">DeepSeek Chat V3</option>
+                  <option value="deepseek-r1">DeepSeek R1</option>
+                  <option value="llama">Llama 3.3 70B</option>
+                </select>
+              </div>
+            )}
+
+            {/* Model override for OpenAI */}
+            {llmProvider === 'openai' && (
+              <div className="mt-3">
+                <label className="block text-xs text-dark-400 mb-1">Model</label>
+                <select
+                  value={llmModel}
+                  onChange={(e) => setLlmModel(e.target.value)}
+                  className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-sm text-dark-200 focus:border-primary focus:outline-none"
+                >
+                  <option value="">Default (GPT-4.1)</option>
+                  <option value="gpt-4.1">GPT-4.1</option>
+                  <option value="gpt-4o">GPT-4o</option>
+                  <option value="gpt-4o-mini">GPT-4o Mini</option>
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Custom Extraction Schema */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-dark-300">Custom Extraction Schema</label>
+              <button
+                type="button"
+                onClick={() => { setUseCustomSchema(!useCustomSchema); setSchemaError(null); setSchemaValid(null); }}
+                className={clsx(
+                  'relative inline-flex h-5 w-9 items-center rounded-full transition-colors',
+                  useCustomSchema ? 'bg-primary' : 'bg-dark-600'
+                )}
+              >
+                <span className={clsx(
+                  'inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform',
+                  useCustomSchema ? 'translate-x-4.5' : 'translate-x-0.5'
+                )} />
+              </button>
+            </div>
+            {useCustomSchema && (
+              <div className="space-y-2">
+                <p className="text-xs text-dark-500">
+                  Provide a JSON schema with <code className="text-dark-400">fieldSchema.fields</code> to extract custom fields.
+                </p>
+                <textarea
+                  value={schemaJson}
+                  onChange={(e) => { setSchemaJson(e.target.value); setSchemaError(null); setSchemaValid(null); }}
+                  placeholder={`{\n  "fieldSchema": {\n    "fields": {\n      "invoice_number": { "type": "string", "description": "Invoice ID" },\n      "total_amount": { "type": "number", "description": "Total due" }\n    }\n  }\n}`}
+                  rows={8}
+                  className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-xs font-mono text-dark-200 focus:border-primary focus:outline-none resize-y"
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleValidateSchema}
+                    disabled={!schemaJson.trim() || validateSchema.isPending}
+                    className="text-xs px-3 py-1.5 rounded-md bg-dark-700 border border-dark-600 text-dark-300 hover:text-dark-100 hover:border-dark-500 transition-colors disabled:opacity-50"
+                  >
+                    {validateSchema.isPending ? 'Validating...' : '✓ Validate Schema'}
+                  </button>
+                  {schemaValid === true && (
+                    <span className="text-xs text-green-400">✅ Valid</span>
+                  )}
+                  {schemaError && (
+                    <span className="text-xs text-red-400">❌ {schemaError}</span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Custom Classification Categories */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-dark-300">Custom Classification Categories</label>
+              <button
+                type="button"
+                onClick={() => setUseCustomCategories(!useCustomCategories)}
+                className={clsx(
+                  'relative inline-flex h-5 w-9 items-center rounded-full transition-colors',
+                  useCustomCategories ? 'bg-primary' : 'bg-dark-600'
+                )}
+              >
+                <span className={clsx(
+                  'inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform',
+                  useCustomCategories ? 'translate-x-4.5' : 'translate-x-0.5'
+                )} />
+              </button>
+            </div>
+            {useCustomCategories && (
+              <div className="space-y-2">
+                <p className="text-xs text-dark-500">
+                  Provide a JSON array of category objects with <code className="text-dark-400">name</code> and <code className="text-dark-400">description</code>.
+                </p>
+                <textarea
+                  value={categoriesJson}
+                  onChange={(e) => setCategoriesJson(e.target.value)}
+                  placeholder={`[\n  { "name": "Invoice", "description": "Commercial invoice document" },\n  { "name": "Receipt", "description": "Payment receipt" }\n]`}
+                  rows={5}
+                  className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-xs font-mono text-dark-200 focus:border-primary focus:outline-none resize-y"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Quick Demo Button */}
       <div className="flex items-center gap-4">

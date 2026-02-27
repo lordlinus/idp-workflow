@@ -1,22 +1,20 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from './apiClient';
 import {
   UploadResponse,
   StartWorkflowRequest,
   StartWorkflowResponse,
-  HistoryResponse,
   HITLReviewSubmission,
   DomainId,
+  ExtractionSchema,
+  SchemaValidationResponse,
+  LLMProvidersResponse,
 } from '@/types';
 
 // Query Keys
 export const queryKeys = {
   all: ['idp'],
-  history: () => [...queryKeys.all, 'history'],
-  historyWithFilter: (limit: number, status?: string) => [
-    ...queryKeys.history(),
-    { limit, status },
-  ],
+  llmProviders: ['idp', 'llm-providers'],
 };
 
 /**
@@ -53,17 +51,23 @@ export function useStartWorkflow() {
 }
 
 /**
- * Get workflow history
+ * Validate an ad-hoc extraction schema
  */
-export function useHistory(limit: number = 20, status?: string, enabled: boolean = true) {
-  return useQuery({
-    queryKey: queryKeys.historyWithFilter(limit, status),
-    queryFn: async (): Promise<HistoryResponse> => {
-      return apiClient.getHistory(limit, status);
+export function useValidateSchema() {
+  return useMutation({
+    mutationFn: async (schema: ExtractionSchema): Promise<SchemaValidationResponse> => {
+      return apiClient.validateSchema(schema);
     },
-    enabled,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes (previously cacheTime)
+  });
+}
+
+/**
+ * Get available LLM providers and models
+ */
+export function useLLMProviders() {
+  return useQuery<LLMProvidersResponse>({
+    queryKey: queryKeys.llmProviders,
+    queryFn: () => apiClient.getLLMProviders(),
   });
 }
 
@@ -84,8 +88,7 @@ export function useSubmitHITLReview() {
       return apiClient.submitHITLReview(instanceId, review);
     },
     onSuccess: () => {
-      // Invalidate history on successful HITL submission
-      queryClient.invalidateQueries({ queryKey: queryKeys.history() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.all });
     },
   });
 }
