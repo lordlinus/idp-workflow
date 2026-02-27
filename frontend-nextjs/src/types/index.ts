@@ -10,6 +10,8 @@ export type StepName =
   | 'step_05_human_review'
   | 'step_06_reasoning_agent';
 
+export const TOTAL_STEPS = 7;
+
 export type StepStatus = 'pending' | 'running' | 'completed' | 'failed';
 
 export interface Step {

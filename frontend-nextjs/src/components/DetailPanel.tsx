@@ -2,7 +2,7 @@ import React from 'react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useReasoningStore } from '@/store/reasoningStore';
 import { formatTimestamp, formatDuration } from '@/lib/utils';
-import { StepName } from '@/types';
+import { StepName, TOTAL_STEPS } from '@/types';
 import { apiClient } from '@/lib/apiClient';
 import clsx from 'clsx';
 
@@ -309,14 +309,14 @@ function DefaultView() {
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-medium text-dark-300">Pipeline Progress</p>
           <span className="text-xs text-dark-400">
-            <span className="text-green-400 font-semibold">{completedSteps.length}</span> / 6 steps
+            <span className="text-green-400 font-semibold">{completedSteps.length}</span> / {TOTAL_STEPS} steps
           </span>
         </div>
         {/* Progress bar */}
         <div className="w-full bg-dark-700 rounded-full h-2">
           <div
             className="bg-gradient-to-r from-blue-500 to-emerald-500 h-2 rounded-full transition-all duration-500"
-            style={{ width: `${(completedSteps.length / 6) * 100}%` }}
+            style={{ width: `${(completedSteps.length / TOTAL_STEPS) * 100}%` }}
           />
         </div>
       </div>

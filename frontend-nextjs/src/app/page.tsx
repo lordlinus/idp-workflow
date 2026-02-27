@@ -10,6 +10,7 @@ import { HITLReviewPanel } from '@/components/HITLReviewPanel';
 import { DetailPanel } from '@/components/DetailPanel';
 import clsx from 'clsx';
 
+import { TOTAL_STEPS } from '@/types';
 import { WorkflowDiagram } from '@/components/WorkflowDiagram';
 
 export default function Page() {
@@ -195,7 +196,7 @@ function WorkflowStatus() {
         </span>
       </div>
       <div className="text-dark-400">
-        <span className="text-green-400 font-medium">{completedCount}</span>/6 steps
+        <span className="text-green-400 font-medium">{completedCount}</span>/{TOTAL_STEPS} steps
       </div>
     </div>
   );
