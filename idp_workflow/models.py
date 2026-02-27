@@ -97,7 +97,9 @@ class WorkflowInitInput(BaseModel):
     )
     max_pages: int = Field(default=50, description="Maximum pages to process")
     request_id: str = Field(description="Unique request identifier for tracking")
-    user_id: str = Field(default="", description="User ID for SignalR user-targeted messaging")
+    user_id: str = Field(
+        default="", description="User ID for SignalR user-targeted messaging"
+    )
     options: dict[str, Any] = Field(
         default_factory=dict,
         description="Additional workflow options (e.g., reasoning_engine, llm_provider, llm_model)",
@@ -258,7 +260,3 @@ class Step06Output(BaseModel):
     engine: str = Field(
         default="dspy", description="Reasoning engine used: 'dspy' or 'agent_framework'"
     )
-
-
-
-

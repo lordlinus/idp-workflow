@@ -261,7 +261,15 @@ def create_extraction_signature(
 # Schema Validation
 # =============================================================================
 
-VALID_FIELD_TYPES = {"string", "number", "date", "integer", "boolean", "array", "object"}
+VALID_FIELD_TYPES = {
+    "string",
+    "number",
+    "date",
+    "integer",
+    "boolean",
+    "array",
+    "object",
+}
 
 
 def validate_extraction_schema(schema: dict[str, Any]) -> list[str]:
@@ -303,12 +311,16 @@ def validate_extraction_schema(schema: dict[str, Any]) -> list[str]:
         if field_type == "array":
             items = field_def.get("items")
             if not isinstance(items, dict):
-                errors.append(f"Array field '{field_name}' must have an 'items' definition")
+                errors.append(
+                    f"Array field '{field_name}' must have an 'items' definition"
+                )
 
         if field_type == "object":
             props = field_def.get("properties")
             if not isinstance(props, dict):
-                errors.append(f"Object field '{field_name}' must have a 'properties' definition")
+                errors.append(
+                    f"Object field '{field_name}' must have a 'properties' definition"
+                )
 
     # Attempt to create the Pydantic model as final validation
     if not errors:

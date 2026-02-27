@@ -36,12 +36,14 @@ def register_signalr_activity(app, hub_name: str, connection_setting: str):
         message = {
             "userId": user_id,
             "target": event,
-            "arguments": [{
-                "event": event,
-                "instanceId": instance_id,
-                "timestamp": datetime.utcnow().isoformat(),
-                "data": data,
-            }],
+            "arguments": [
+                {
+                    "event": event,
+                    "instanceId": instance_id,
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "data": data,
+                }
+            ],
         }
 
         signalRMessages.set(json.dumps([message]))

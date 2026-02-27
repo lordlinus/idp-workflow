@@ -6,8 +6,11 @@ targetScope = 'subscription'
 param environmentName string
 
 @minLength(1)
-@description('Primary location for all resources')
+@description('Primary location for all resources (used by Functions, Storage, etc.)')
 param location string
+
+@description('Location for Static Web App (limited region availability)')
+param staticWebAppLocation string = 'eastasia'
 
 // ── External service connection strings (provided via azd env set) ──────────
 
@@ -71,6 +74,7 @@ module core 'core.bicep' = {
   scope: rg
   params: {
     location: location
+    staticWebAppLocation: staticWebAppLocation
     resourceToken: resourceToken
     tags: tags
     azureSignalRConnectionString: azureSignalRConnectionString

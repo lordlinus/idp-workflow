@@ -22,7 +22,6 @@ AzuriteConfig
 *.swo
 *~
 reference/
-sample_documents/
 *.http
 poll_status.sh
 UI_QUICK_REFERENCE.md

@@ -26,7 +26,7 @@ source .venv/bin/activate && func start
 cd frontend && npm run dev
 ```
 
-**See [QUICK_START.md](./QUICK_START.md) for detailed setup instructions.**
+**See the [Getting Started](#-getting-started) section below for detailed setup instructions.**
 
 ## 📁 Project Structure
 
@@ -55,13 +55,6 @@ cd frontend && npm run dev
 ├── host.json                    # Azure Functions configuration
 ├── local.settings.json          # Local environment variables
 │
-├── docs/                        # Documentation
-│   ├── Agents.md               # Agent architecture and design
-│   └── UI_QUICK_REFERENCE.md   # Frontend integration guide
-│
-├── tests/                       # Test files and utilities
-│   └── demo.http               # HTTP request examples
-│
 ├── sample_documents/            # Sample PDFs for testing
 │
 ├── azure.yaml                   # Azure Developer CLI configuration
@@ -70,9 +63,6 @@ cd frontend && npm run dev
 │   ├── core.bicep              # Core resource definitions
 │   └── main.parameters.json   # Parameter values
 │
-├── QUICK_START.md              # ⭐ Get started in 5 minutes
-├── SETUP_GUIDE.md              # Detailed setup & deployment
-├── DOCS_INDEX.md               # Documentation index
 └── idp_workflow/                # Main workflow package
     ├── constants.py             # Configuration constants
     ├── config.py                # Settings management
@@ -199,11 +189,11 @@ cd frontend && npm run dev
 
 2. **Open the web UI**
 
-   Navigate to `http://localhost:7071/api/frontend/index.html` or open `frontend/index.html` in your browser.
+   Navigate to `http://localhost:3000` (frontend dev server).
 
 3. **Test with sample documents**
 
-   Use the HTTP requests in `tests/demo.http` or upload documents through the UI.
+   Upload documents through the UI or use curl (see [Testing](#-testing) section).
 
 ## 📋 Workflow Steps
 
@@ -276,7 +266,7 @@ Configure DSPy LM settings in `idp_workflow/config.py`:
 
 ## 🧪 Testing
 
-Run tests using the provided `tests/demo.http` file with REST Client extension in VS Code, or use curl:
+Test the API using curl:
 
 ```bash
 # Start workflow
@@ -334,12 +324,6 @@ azd env set TASKHUB_NAME "IDPWorkflow"
 # Provision infrastructure and deploy
 azd up
 ```
-
-## 📖 Documentation
-
-- [docs/Agents.md](docs/Agents.md) - Detailed agent architecture
-- [docs/UI_QUICK_REFERENCE.md](docs/UI_QUICK_REFERENCE.md) - Frontend guide
-- [tests/demo.http](tests/demo.http) - API examples
 
 ## 🤝 Contributing
 

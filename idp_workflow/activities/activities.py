@@ -66,7 +66,9 @@ def register_activities(app):
         """Classify document pages."""
         try:
             from idp_workflow.config import DOMAINS_DIR
-            from idp_workflow.steps.step_02_classifier import DocumentClassificationExecutor
+            from idp_workflow.steps.step_02_classifier import (
+                DocumentClassificationExecutor,
+            )
             from idp_workflow.tools.llm_factory import create_dspy_lm
 
             request_id = classify_request.get("request_id")

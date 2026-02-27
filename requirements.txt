@@ -1,11 +1,12 @@
 azure-functions
 azure-functions-durable
+agent-framework-core==1.0.0rc2
 agent-framework-azurefunctions==1.0.0b260225
-azure-identity
+azure-identity==1.26.0b2
 azure-ai-documentintelligence==1.0.2
 dspy==3.1.3
-pydantic
-azure-storage-blob
+pydantic==2.13.0b2
+azure-storage-blob==12.29.0b1
 requests
 pydantic-settings
 azure-monitor-opentelemetry

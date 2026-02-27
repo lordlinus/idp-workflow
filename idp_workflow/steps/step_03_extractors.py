@@ -57,11 +57,14 @@ class AzureExtractor:
                 schema_dict["baseAnalyzerId"] = "prebuilt-document"
             if "scenario" not in schema_dict:
                 schema_dict["scenario"] = "document"
-            if "models" not in schema_dict or not schema_dict["models"].get("completion"):
+            if "models" not in schema_dict or not schema_dict["models"].get(
+                "completion"
+            ):
                 schema_dict.setdefault("models", {})["completion"] = "gpt-4.1"
 
             # Ad-hoc schema: use hash-based analyzer ID to avoid collisions
             import hashlib
+
             schema_hash = hashlib.sha256(
                 json.dumps(schema_dict, sort_keys=True).encode()
             ).hexdigest()[:12]
@@ -332,7 +335,9 @@ class DSPyExtractor:
 
             self.schema_path = Path(schema_path)
             logger.info(f"Loading DSPy extraction schema from: {self.schema_path}")
-            self.extraction_model = create_extraction_model_from_schema(self.schema_path)
+            self.extraction_model = create_extraction_model_from_schema(
+                self.schema_path
+            )
 
         # Create extractor module
         self.extractor = DocumentExtractor(extraction_model=self.extraction_model)

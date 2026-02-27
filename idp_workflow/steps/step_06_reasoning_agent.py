@@ -9,7 +9,7 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, Field
 
-from agent_framework import ai_function
+from agent_framework import tool
 from agent_framework.azure import AzureOpenAIChatClient
 
 from idp_workflow.config import (
@@ -126,7 +126,7 @@ def get_tool_context() -> ToolContext:
     return _tool_context
 
 
-@ai_function
+@tool
 def get_validation_rules() -> dict[str, Any]:
     """
     Get the validation rules for the current document domain.
@@ -154,7 +154,7 @@ def get_validation_rules() -> dict[str, Any]:
     return result
 
 
-@ai_function
+@tool
 def run_validation_check(
     field_name: Annotated[str, Field(description="The field name to validate")],
     field_value: Annotated[str, Field(description="The value to validate")],
@@ -240,7 +240,7 @@ def run_validation_check(
     return result
 
 
-@ai_function
+@tool
 def get_azure_extraction() -> dict[str, Any]:
     """
     Get the extracted data from Azure Content Understanding.
@@ -258,7 +258,7 @@ def get_azure_extraction() -> dict[str, Any]:
     return result
 
 
-@ai_function
+@tool
 def get_dspy_extraction() -> dict[str, Any]:
     """
     Get the extracted data from DSPy LLM extraction.
@@ -276,7 +276,7 @@ def get_dspy_extraction() -> dict[str, Any]:
     return result
 
 
-@ai_function
+@tool
 def get_comparison_analysis() -> dict[str, Any]:
     """
     Get the comparison analysis between Azure and DSPy extractions.
@@ -299,7 +299,7 @@ def get_comparison_analysis() -> dict[str, Any]:
     return result
 
 
-@ai_function
+@tool
 def get_human_review_status() -> dict[str, Any]:
     """
     Get the human review status and feedback.
@@ -317,7 +317,7 @@ def get_human_review_status() -> dict[str, Any]:
     return result
 
 
-@ai_function
+@tool
 def consolidate_field_value(
     field_name: Annotated[str, Field(description="The field name to consolidate")],
     recommended_value: Annotated[
@@ -359,7 +359,7 @@ def consolidate_field_value(
     return result
 
 
-@ai_function
+@tool
 def get_policy_guidelines(
     document_type: Annotated[
         str, Field(description="The type of document being processed")
@@ -478,7 +478,7 @@ class AgentReasoningEngine:
         )
 
         # Create agent with tools
-        self.agent = self.chat_client.create_agent(
+        self.agent = self.chat_client.as_agent(
             name="ReasoningAgent",
             instructions=REASONING_AGENT_INSTRUCTIONS,
             tools=[
@@ -580,29 +580,32 @@ Then provide a comprehensive summary with your findings and recommendations."""
             self._emit_chunk("user", f"Analyzing {document_type}...")
 
             # Run the agent with real-time streaming
-            thread = self.agent.get_new_thread()
             ai_summary_parts = []
             chunk_count = 0
-            
-            async for response in self.agent.run_stream(prompt, thread=thread):
+
+            async for update in self.agent.run(prompt, stream=True):
                 # Stream each response chunk in real-time to frontend
-                if response.text:
-                    ai_summary_parts.append(response.text)
+                if update.text:
+                    ai_summary_parts.append(update.text)
                     chunk_count += 1
                     # Emit chunk with metadata for streaming progress
                     self._emit_chunk(
                         "llm_stream",
-                        response.text,
+                        update.text,
                         {
                             "chunkIndex": chunk_count,
                             "isStreaming": True,
                             "totalLength": sum(len(p) for p in ai_summary_parts),
                         },
                     )
-                    logger.debug(f"Streamed LLM chunk {chunk_count}: {len(response.text)} chars")
-            
+                    logger.debug(
+                        f"Streamed LLM chunk {chunk_count}: {len(update.text)} chars"
+                    )
+
             ai_summary = "".join(ai_summary_parts)
-            logger.info(f"LLM streaming complete: {chunk_count} chunks, {len(ai_summary)} total chars")
+            logger.info(
+                f"LLM streaming complete: {chunk_count} chunks, {len(ai_summary)} total chars"
+            )
 
             # Extract validation results from context
             validation_results = self._run_all_validations(context)
@@ -895,9 +898,7 @@ Then provide a comprehensive summary with your findings and recommendations."""
 
         return min(1.0, max(0.0, confidence))
 
-    def _extract_recommendations_streaming(
-        self, ai_summary: str
-    ) -> list[str]:
+    def _extract_recommendations_streaming(self, ai_summary: str) -> list[str]:
         """Extract recommendations from AI summary and emit each as a streaming chunk."""
         recommendations = []
 
@@ -934,7 +935,9 @@ Then provide a comprehensive summary with your findings and recommendations."""
                             "total": None,  # Updated later when complete
                         },
                     )
-                    logger.debug(f"Extracted recommendation {recommendation_index}: {clean}")
+                    logger.debug(
+                        f"Extracted recommendation {recommendation_index}: {clean}"
+                    )
 
         if not recommendations:
             recommendations = [
@@ -950,7 +953,7 @@ Then provide a comprehensive summary with your findings and recommendations."""
                 )
 
         recommendations = recommendations[:5]  # Limit to 5 recommendations
-        
+
         # Emit completion of recommendations section
         self._emit_chunk(
             "recommendations_complete",
@@ -960,7 +963,7 @@ Then provide a comprehensive summary with your findings and recommendations."""
                 "sectionEnd": True,
             },
         )
-        
+
         return recommendations
 
     def _extract_recommendations(self, ai_summary: str) -> list[str]:

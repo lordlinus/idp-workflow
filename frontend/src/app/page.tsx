@@ -50,7 +50,7 @@ export default function Page() {
           </div>
 
           <div className="flex items-center gap-4">
-            <ConnectionIndicator />
+            {currentPage === 'execution' && <ConnectionIndicator />}
 
             {currentPage === 'execution' && (
               <button
@@ -65,7 +65,7 @@ export default function Page() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 px-4 py-4 overflow-hidden">
+      <main className="flex-1 px-4 py-4 overflow-auto">
         {isTransitioning ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center animate-pulse">

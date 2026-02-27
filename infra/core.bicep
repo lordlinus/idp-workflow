@@ -1,6 +1,9 @@
 @description('Location for all resources')
 param location string
 
+@description('Location for Static Web App')
+param staticWebAppLocation string
+
 @description('Unique token for resource naming')
 param resourceToken string
 
@@ -65,19 +68,130 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   properties: {
     minimumTlsVersion: 'TLS1_2'
     supportsHttpsTrafficOnly: true
+    allowSharedKeyAccess: false
+    publicNetworkAccess: 'SecuredByPerimeter'
   }
 }
 
-// ── App Service Plan (Consumption / Flex Consumption) ───────────────────────
+// ── Blob container for Flex Consumption deployment packages ─────────────────
 
-resource functionPlan 'Microsoft.Web/serverfarms@2023-12-01' = {
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
+  parent: storageAccount
+  name: 'default'
+}
+
+resource deploymentContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'deploymentpackage'
+}
+
+// ── Network Security Perimeter (restrict storage public access) ─────────────
+
+resource networkSecurityPerimeter 'Microsoft.Network/networkSecurityPerimeters@2023-07-01-preview' = {
+  name: 'nsp-${resourceToken}'
+  location: location
+  tags: tags
+  properties: {}
+}
+
+resource nspProfile 'Microsoft.Network/networkSecurityPerimeters/profiles@2023-07-01-preview' = {
+  parent: networkSecurityPerimeter
+  name: 'profile-storage'
+  location: location
+  properties: {}
+}
+
+resource nspInboundRule 'Microsoft.Network/networkSecurityPerimeters/profiles/accessRules@2023-07-01-preview' = {
+  parent: nspProfile
+  name: 'allow-subscription-inbound'
+  location: location
+  properties: {
+    direction: 'Inbound'
+    subscriptions: [
+      {
+        id: subscription().id
+      }
+    ]
+  }
+}
+
+resource nspStorageAssociation 'Microsoft.Network/networkSecurityPerimeters/resourceAssociations@2023-07-01-preview' = {
+  parent: networkSecurityPerimeter
+  name: 'assoc-storage'
+  location: location
+  properties: {
+    privateLinkResource: {
+      id: storageAccount.id
+    }
+    profile: {
+      id: nspProfile.id
+    }
+    accessMode: 'Enforced'
+  }
+}
+
+// ── RBAC: Function App → Storage (identity-based access) ────────────────────
+
+resource storageBlobDataOwner 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(storageAccount.id, functionApp.id, 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b')
+  scope: storageAccount
+  properties: {
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b')
+  }
+}
+
+resource storageAccountContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(storageAccount.id, functionApp.id, '17d1049b-9a84-46fb-8f53-869881c3d3ab')
+  scope: storageAccount
+  properties: {
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '17d1049b-9a84-46fb-8f53-869881c3d3ab')
+  }
+}
+
+resource storageQueueDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(storageAccount.id, functionApp.id, '974c5e8b-45b9-4653-ba55-5f855dd0fb88')
+  scope: storageAccount
+  properties: {
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '974c5e8b-45b9-4653-ba55-5f855dd0fb88')
+  }
+}
+
+resource storageTableDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(storageAccount.id, functionApp.id, '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')
+  scope: storageAccount
+  properties: {
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')
+  }
+}
+
+resource storageFileDataPrivilegedContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(storageAccount.id, functionApp.id, '69566ab7-960f-475b-8e7c-b3118f30c6bd')
+  scope: storageAccount
+  properties: {
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '69566ab7-960f-475b-8e7c-b3118f30c6bd')
+  }
+}
+
+// ── App Service Plan (Flex Consumption) ─────────────────────────────────────
+
+resource functionPlan 'Microsoft.Web/serverfarms@2024-04-01' = {
   name: 'plan-${resourceToken}'
   location: location
   tags: tags
   kind: 'functionapp,linux'
   sku: {
-    name: 'Y1'
-    tier: 'Dynamic'
+    name: 'FC1'
+    tier: 'FlexConsumption'
   }
   properties: {
     reserved: true
@@ -86,27 +200,43 @@ resource functionPlan 'Microsoft.Web/serverfarms@2023-12-01' = {
 
 // ── Function App ────────────────────────────────────────────────────────────
 
-resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
+resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
   name: 'func-${resourceToken}'
   location: location
   tags: union(tags, {
     'azd-service-name': 'api'
   })
   kind: 'functionapp,linux'
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     serverFarmId: functionPlan.id
     httpsOnly: true
+    functionAppConfig: {
+      deployment: {
+        storage: {
+          type: 'blobContainer'
+          value: '${storageAccount.properties.primaryEndpoints.blob}deploymentpackage'
+          authentication: {
+            type: 'SystemAssignedIdentity'
+          }
+        }
+      }
+      scaleAndConcurrency: {
+        maximumInstanceCount: 100
+        instanceMemoryMB: 2048
+      }
+      runtime: {
+        name: 'python'
+        version: '3.11'
+      }
+    }
     siteConfig: {
-      pythonVersion: '3.13'
-      linuxFxVersion: 'Python|3.13'
       appSettings: [
-        { name: 'AzureWebJobsStorage', value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${storageAccount.listKeys().keys[0].value};EndpointSuffix=core.windows.net' }
-        { name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING', value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${storageAccount.listKeys().keys[0].value};EndpointSuffix=core.windows.net' }
-        { name: 'WEBSITE_CONTENTSHARE', value: 'func-${resourceToken}' }
+        { name: 'AzureWebJobsStorage__accountName', value: storageAccount.name }
+        { name: 'AZURE_STORAGE_ACCOUNT_NAME', value: storageAccount.name }
         { name: 'FUNCTIONS_EXTENSION_VERSION', value: '~4' }
-        { name: 'FUNCTIONS_WORKER_RUNTIME', value: 'python' }
-        { name: 'SCM_DO_BUILD_DURING_DEPLOYMENT', value: 'true' }
-        { name: 'ENABLE_ORYX_BUILD', value: 'true' }
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
         { name: 'TASKHUB_NAME', value: taskHubName }
         { name: 'AzureSignalRConnectionString', value: azureSignalRConnectionString }
@@ -134,13 +264,13 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
 
 resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
   name: 'swa-${resourceToken}'
-  location: location
+  location: staticWebAppLocation
   tags: union(tags, {
     'azd-service-name': 'frontend'
   })
   sku: {
-    name: 'Free'
-    tier: 'Free'
+    name: 'Standard'
+    tier: 'Standard'
   }
   properties: {
     buildProperties: {
@@ -149,12 +279,13 @@ resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
   }
 }
 
-// Configure SWA app settings (API base URL)
-resource swaAppSettings 'Microsoft.Web/staticSites/config@2023-12-01' = {
+// Link Function App as backend API ("Bring your own API")
+resource swaLinkedBackend 'Microsoft.Web/staticSites/linkedBackends@2023-12-01' = {
   parent: staticWebApp
-  name: 'appsettings'
+  name: 'backend'
   properties: {
-    NEXT_PUBLIC_API_BASE_URL: 'https://${functionApp.properties.defaultHostName}/api'
+    backendResourceId: functionApp.id
+    region: location
   }
 }
 
@@ -166,3 +297,4 @@ output functionAppUrl string = 'https://${functionApp.properties.defaultHostName
 output staticWebAppId string = staticWebApp.id
 output staticWebAppName string = staticWebApp.name
 output staticWebAppUrl string = 'https://${staticWebApp.properties.defaultHostname}'
+output storageAccountName string = storageAccount.name

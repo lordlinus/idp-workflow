@@ -15,7 +15,4 @@ services:
       prebuild:
         shell: sh
         run: npm install
-      build:
-        shell: sh
-        run: NEXT_PUBLIC_API_BASE_URL="${SERVICE_API_URI}" npm run build
 

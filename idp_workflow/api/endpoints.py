@@ -10,7 +10,8 @@ from typing import Optional
 import azure.functions as func
 from pydantic import ValidationError
 from azure.durable_functions import DurableOrchestrationClient
-from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
+from azure.storage.blob import BlobServiceClient
+from azure.identity import DefaultAzureCredential
 
 from idp_workflow.constants import (
     WORKFLOW_ORCHESTRATION,
@@ -89,7 +90,9 @@ def register_http_endpoints(app):
         except Exception as e:
             logger.error(f"Error retrieving domain configuration: {e}")
             return func.HttpResponse(
-                body=json.dumps({"error": f"Failed to retrieve domain configuration: {str(e)}"}),
+                body=json.dumps(
+                    {"error": f"Failed to retrieve domain configuration: {str(e)}"}
+                ),
                 status_code=500,
                 mimetype="application/json",
             )
@@ -99,47 +102,55 @@ def register_http_endpoints(app):
         """Upload PDF file to Azure Blob Storage or local filesystem."""
         try:
             # Get file from multipart form
-            if 'file' not in req.files:
+            if "file" not in req.files:
                 return func.HttpResponse(
                     body=json.dumps({"error": "No file provided"}),
                     status_code=400,
                     mimetype="application/json",
                 )
 
-            file = req.files['file']
+            file = req.files["file"]
             file_data = file.read()
 
-            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
             file_id = str(uuid.uuid4())[:8]
             safe_filename = f"{timestamp}_{file_id}_{file.filename}"
 
-            conn_string = os.environ.get('AzureWebJobsStorage', '')
-            use_local = not conn_string or conn_string.strip().lower() == 'usedevelopmentstorage=true'
+            storage_account_name = os.environ.get("AZURE_STORAGE_ACCOUNT_NAME", "")
+            use_local = not storage_account_name
 
             if use_local:
                 # Local development: save to filesystem
                 from pathlib import Path
-                upload_dir = Path(os.environ.get('LOCAL_UPLOAD_DIR', '/tmp/idp_uploads'))
+
+                upload_dir = Path(
+                    os.environ.get("LOCAL_UPLOAD_DIR", "/tmp/idp_uploads")
+                )
                 upload_dir.mkdir(parents=True, exist_ok=True)
                 local_path = str(upload_dir / safe_filename)
-                with open(local_path, 'wb') as f:
+                with open(local_path, "wb") as f:
                     f.write(file_data)
 
                 logger.info(f"PDF saved locally: {local_path} ({len(file_data)} bytes)")
 
                 return func.HttpResponse(
-                    body=json.dumps({
-                        "blobPath": local_path,
-                        "blobUri": f"file://{local_path}",
-                        "fileName": file.filename,
-                    }),
+                    body=json.dumps(
+                        {
+                            "blobPath": local_path,
+                            "blobUri": f"file://{local_path}",
+                            "fileName": file.filename,
+                        }
+                    ),
                     status_code=200,
                     mimetype="application/json",
                 )
             else:
                 # Azure: upload to Blob Storage
-                blob_service_client = BlobServiceClient.from_connection_string(conn_string)
-                container_client = blob_service_client.get_container_client('documents')
+                account_url = f"https://{storage_account_name}.blob.core.windows.net"
+                blob_service_client = BlobServiceClient(
+                    account_url=account_url, credential=DefaultAzureCredential()
+                )
+                container_client = blob_service_client.get_container_client("documents")
                 try:
                     container_client.create_container()
                 except Exception:
@@ -151,14 +162,18 @@ def register_http_endpoints(app):
                 account_name = blob_service_client.account_name
                 blob_uri = f"https://{account_name}.blob.core.windows.net/documents/{blob_name}"
 
-                logger.info(f"PDF uploaded to blob: {blob_name} ({len(file_data)} bytes)")
+                logger.info(
+                    f"PDF uploaded to blob: {blob_name} ({len(file_data)} bytes)"
+                )
 
                 return func.HttpResponse(
-                    body=json.dumps({
-                        "blobPath": blob_name,
-                        "blobUri": blob_uri,
-                        "fileName": file.filename,
-                    }),
+                    body=json.dumps(
+                        {
+                            "blobPath": blob_name,
+                            "blobUri": blob_uri,
+                            "fileName": file.filename,
+                        }
+                    ),
                     status_code=200,
                     mimetype="application/json",
                 )
@@ -174,7 +189,7 @@ def register_http_endpoints(app):
     @app.route(route="idp/demo/{domain_id}", methods=["POST"])
     async def http_use_demo_document(req: func.HttpRequest) -> func.HttpResponse:
         """Use a demo document for the specified domain from sample_documents folder.
-        
+
         Returns the local file path directly for local development.
         The PDF extractor already supports local file paths.
         """
@@ -197,19 +212,24 @@ def register_http_endpoints(app):
 
             if domain_id not in demo_files:
                 return func.HttpResponse(
-                    body=json.dumps({"error": f"No demo document for domain: {domain_id}"}),
+                    body=json.dumps(
+                        {"error": f"No demo document for domain: {domain_id}"}
+                    ),
                     status_code=404,
                     mimetype="application/json",
                 )
 
             # Get the sample document path (absolute path for local file processing)
             import pathlib
+
             project_root = pathlib.Path(__file__).parent.parent.parent
             sample_path = project_root / "sample_documents" / demo_files[domain_id]
 
             if not sample_path.exists():
                 return func.HttpResponse(
-                    body=json.dumps({"error": f"Demo document not found: {demo_files[domain_id]}"}),
+                    body=json.dumps(
+                        {"error": f"Demo document not found: {demo_files[domain_id]}"}
+                    ),
                     status_code=404,
                     mimetype="application/json",
                 )
@@ -219,12 +239,14 @@ def register_http_endpoints(app):
             logger.info(f"Using demo document: {local_path}")
 
             return func.HttpResponse(
-                body=json.dumps({
-                    "blobPath": local_path,
-                    "blobUri": f"file://{local_path}",
-                    "fileName": demo_files[domain_id],
-                    "domain_id": domain_id,
-                }),
+                body=json.dumps(
+                    {
+                        "blobPath": local_path,
+                        "blobUri": f"file://{local_path}",
+                        "fileName": demo_files[domain_id],
+                        "domain_id": domain_id,
+                    }
+                ),
                 status_code=200,
                 mimetype="application/json",
             )
@@ -244,7 +266,7 @@ def register_http_endpoints(app):
         client: DurableOrchestrationClient,
     ) -> func.HttpResponse:
         """Get current workflow status including completed step outputs.
-        
+
         Used by the frontend to sync state after SignalR subscription,
         catching any events that fired before the client connected.
         """
@@ -266,14 +288,24 @@ def register_http_endpoints(app):
                 )
 
             return func.HttpResponse(
-                body=json.dumps({
-                    "instanceId": status.instance_id,
-                    "runtimeStatus": str(status.runtime_status),
-                    "customStatus": status.custom_status,
-                    "output": status.output,
-                    "createdTime": status.created_time.isoformat() if status.created_time else None,
-                    "lastUpdatedTime": status.last_updated_time.isoformat() if status.last_updated_time else None,
-                }),
+                body=json.dumps(
+                    {
+                        "instanceId": status.instance_id,
+                        "runtimeStatus": str(status.runtime_status),
+                        "customStatus": status.custom_status,
+                        "output": status.output,
+                        "createdTime": (
+                            status.created_time.isoformat()
+                            if status.created_time
+                            else None
+                        ),
+                        "lastUpdatedTime": (
+                            status.last_updated_time.isoformat()
+                            if status.last_updated_time
+                            else None
+                        ),
+                    }
+                ),
                 status_code=200,
                 mimetype="application/json",
             )
@@ -320,7 +352,9 @@ def register_http_endpoints(app):
                 user_id=user_id,
                 options=body.get("options", {}),
                 custom_extraction_schema=body.get("custom_extraction_schema"),
-                custom_classification_categories=body.get("custom_classification_categories"),
+                custom_classification_categories=body.get(
+                    "custom_classification_categories"
+                ),
             )
 
             instance_id = await client.start_new(
@@ -364,12 +398,15 @@ def register_http_endpoints(app):
             schema = body.get("schema")
             if not schema:
                 return func.HttpResponse(
-                    body=json.dumps({"error": "Request body must contain 'schema' object"}),
+                    body=json.dumps(
+                        {"error": "Request body must contain 'schema' object"}
+                    ),
                     status_code=400,
                     mimetype="application/json",
                 )
 
             from idp_workflow.tools.dspy_utils import validate_extraction_schema
+
             errors = validate_extraction_schema(schema)
 
             if errors:
@@ -382,12 +419,22 @@ def register_http_endpoints(app):
             # Return field summary on success
             fields = schema.get("fieldSchema", {}).get("fields", {})
             field_summary = [
-                {"name": name, "type": defn.get("type", "string"), "description": defn.get("description", "")}
+                {
+                    "name": name,
+                    "type": defn.get("type", "string"),
+                    "description": defn.get("description", ""),
+                }
                 for name, defn in fields.items()
             ]
 
             return func.HttpResponse(
-                body=json.dumps({"valid": True, "fields": field_summary, "field_count": len(field_summary)}),
+                body=json.dumps(
+                    {
+                        "valid": True,
+                        "fields": field_summary,
+                        "field_count": len(field_summary),
+                    }
+                ),
                 status_code=200,
                 mimetype="application/json",
             )
@@ -405,6 +452,7 @@ def register_http_endpoints(app):
         """List available LLM providers and their configuration."""
         try:
             from idp_workflow.tools.llm_factory import get_available_providers
+
             providers = get_available_providers()
             return func.HttpResponse(
                 body=json.dumps({"providers": providers}),
@@ -532,8 +580,3 @@ def register_signalr_endpoints(app):
             status_code=200,
             mimetype="application/json",
         )
-
-
-
-
-

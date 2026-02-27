@@ -53,11 +53,15 @@ def create_dspy_lm(options: dict[str, Any] | None = None) -> dspy.LM:
         Configured dspy.LM instance
     """
     options = options or {}
-    provider = options.get("llm_provider", os.getenv("LLM_PROVIDER", PROVIDER_AZURE_OPENAI))
+    provider = options.get(
+        "llm_provider", os.getenv("LLM_PROVIDER", PROVIDER_AZURE_OPENAI)
+    )
     temperature = float(options.get("llm_temperature", 0.0))
 
     if provider not in SUPPORTED_PROVIDERS:
-        logger.warning(f"Unknown LLM provider '{provider}', falling back to azure_openai")
+        logger.warning(
+            f"Unknown LLM provider '{provider}', falling back to azure_openai"
+        )
         provider = PROVIDER_AZURE_OPENAI
 
     if provider == PROVIDER_AZURE_OPENAI:

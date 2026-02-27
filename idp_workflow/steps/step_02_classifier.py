@@ -58,7 +58,9 @@ class DocumentClassifier(dspy.Module):
             with open(categories_json_path, "r") as f:
                 self.categories = json.load(f)
         else:
-            raise ValueError("Either categories_json_path or categories must be provided")
+            raise ValueError(
+                "Either categories_json_path or categories must be provided"
+            )
 
         self.categories_desc = self._format_categories()
 

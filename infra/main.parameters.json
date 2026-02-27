@@ -8,6 +8,9 @@
     "location": {
       "value": "${AZURE_LOCATION}"
     },
+    "staticWebAppLocation": {
+      "value": "${AZURE_SWA_LOCATION}"
+    },
     "azureSignalRConnectionString": {
       "value": "${AZURE_SIGNALR_CONNECTION_STRING}"
     },
