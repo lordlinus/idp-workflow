@@ -575,6 +575,9 @@ def register_orchestration(app):
 
             reasoning_data = reasoning_result.get("reasoning_result", {})
             step6_output = reasoning_result.get("step_output", {})
+            # Include AI summary and recommendations for frontend display
+            step6_output["ai_summary"] = reasoning_data.get("ai_summary", "")
+            step6_output["recommendations"] = reasoning_data.get("recommendations", [])
 
             logger.info(
                 f"[{request_id}] Step 6 completed: "
