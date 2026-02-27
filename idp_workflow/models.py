@@ -97,9 +97,18 @@ class WorkflowInitInput(BaseModel):
     )
     max_pages: int = Field(default=50, description="Maximum pages to process")
     request_id: str = Field(description="Unique request identifier for tracking")
+    user_id: str = Field(default="", description="User ID for SignalR user-targeted messaging")
     options: dict[str, Any] = Field(
         default_factory=dict,
-        description="Additional workflow options (e.g., reasoning_engine: 'agent' | 'dspy')",
+        description="Additional workflow options (e.g., reasoning_engine, llm_provider, llm_model)",
+    )
+    custom_extraction_schema: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="Ad-hoc extraction schema (overrides domain schema). Must contain fieldSchema.fields.",
+    )
+    custom_classification_categories: Optional[list[dict[str, Any]]] = Field(
+        default=None,
+        description="Ad-hoc classification categories (overrides domain categories).",
     )
 
 

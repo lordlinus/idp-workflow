@@ -2,8 +2,6 @@
 
 import logging
 
-import dspy
-
 from idp_workflow.models import PDFContent
 
 logger = logging.getLogger(__name__)
@@ -59,17 +57,14 @@ def register_activities(app):
     async def activity_step_02_classification(classify_request: dict) -> dict:
         """Classify document pages."""
         try:
-            from idp_workflow.config import (
-                AZURE_OPENAI_CHAT_DEPLOYMENT_NAME,
-                AZURE_OPENAI_ENDPOINT,
-                AZURE_OPENAI_KEY,
-                AZURE_OPENAI_API_VERSION,
-                DOMAINS_DIR,
-            )
+            from idp_workflow.config import DOMAINS_DIR
             from idp_workflow.steps.step_02_classifier import DocumentClassificationExecutor
+            from idp_workflow.tools.llm_factory import create_dspy_lm
 
             request_id = classify_request.get("request_id")
             max_pages = classify_request.get("max_pages", 50)
+            options = classify_request.get("options", {})
+            custom_categories = classify_request.get("custom_classification_categories")
 
             logger.info(f"[{request_id}] Starting document classification")
 
@@ -81,22 +76,23 @@ def register_activities(app):
                 full_text=pdf_content_dict.get("full_text", ""),
             )
 
-            lm = dspy.LM(
-                model=f"azure/{AZURE_OPENAI_CHAT_DEPLOYMENT_NAME}",
-                api_base=AZURE_OPENAI_ENDPOINT,
-                api_key=AZURE_OPENAI_KEY,
-                api_version=AZURE_OPENAI_API_VERSION,
-            )
+            lm = create_dspy_lm(options)
 
-            categories_path = DOMAINS_DIR / classify_request.get(
-                "domain_id", "insurance_claims"
-            )
-            categories_path = categories_path / "classification_categories.json"
-
-            classifier = DocumentClassificationExecutor(
-                categories_path=categories_path,
-                lm=lm,
-            )
+            # Use custom categories if provided, otherwise load from domain
+            if custom_categories:
+                classifier = DocumentClassificationExecutor(
+                    categories=custom_categories,
+                    lm=lm,
+                )
+            else:
+                categories_path = DOMAINS_DIR / classify_request.get(
+                    "domain_id", "insurance_claims"
+                )
+                categories_path = categories_path / "classification_categories.json"
+                classifier = DocumentClassificationExecutor(
+                    categories_path=categories_path,
+                    lm=lm,
+                )
 
             classification_result, step_output = await classifier.classify(
                 pdf_content, max_pages=max_pages
@@ -144,6 +140,7 @@ def register_activities(app):
             domain_id = extract_request.get("domain_id", "insurance_claims")
             max_pages = extract_request.get("max_pages", 50)
             pdf_path = extract_request.get("pdf_path")
+            custom_schema = extract_request.get("custom_extraction_schema")
 
             if not pdf_path:
                 raise ValueError("pdf_path is required for Azure extraction")
@@ -152,7 +149,10 @@ def register_activities(app):
                 f"[{request_id}] Starting Azure CU extraction from PDF: {pdf_path}"
             )
 
-            extractor = AzureExtractor(domain_id=domain_id)
+            extractor = AzureExtractor(
+                domain_id=domain_id,
+                schema_dict=custom_schema,
+            )
             extraction_result, step_output = await extractor.extract(
                 pdf_path=pdf_path, max_pages=max_pages
             )
@@ -176,18 +176,15 @@ def register_activities(app):
     async def activity_step_03_02_dspy_extraction(extract_request: dict) -> dict:
         """Extract data using DSPy."""
         try:
-            from idp_workflow.config import (
-                AZURE_OPENAI_CHAT_DEPLOYMENT_NAME,
-                AZURE_OPENAI_ENDPOINT,
-                AZURE_OPENAI_API_VERSION,
-                AZURE_OPENAI_KEY,
-            )
             from idp_workflow.steps.step_03_extractors import DSPyExtractor
+            from idp_workflow.tools.llm_factory import create_dspy_lm
 
             request_id = extract_request.get("request_id")
             domain_id = extract_request.get("domain_id", "insurance_claims")
             full_text = extract_request.get("full_text", "")
             total_pages = extract_request.get("total_pages", 0)
+            options = extract_request.get("options", {})
+            custom_schema = extract_request.get("custom_extraction_schema")
 
             if not full_text:
                 raise ValueError("full_text is required for DSPy extraction")
@@ -196,15 +193,13 @@ def register_activities(app):
                 f"[{request_id}] Starting DSPy extraction from {len(full_text)} chars"
             )
 
-            lm = dspy.LM(
-                model=f"azure/{AZURE_OPENAI_CHAT_DEPLOYMENT_NAME}",
-                api_base=AZURE_OPENAI_ENDPOINT,
-                api_version=AZURE_OPENAI_API_VERSION,
-                api_key=AZURE_OPENAI_KEY,
-                temperature=0.0,
-            )
+            lm = create_dspy_lm(options)
 
-            extractor = DSPyExtractor(domain_id=domain_id, lm=lm)
+            extractor = DSPyExtractor(
+                domain_id=domain_id,
+                lm=lm,
+                schema_dict=custom_schema,
+            )
             extraction_result, step_output = await extractor.extract(
                 full_text=full_text, total_pages=total_pages
             )

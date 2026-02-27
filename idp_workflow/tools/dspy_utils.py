@@ -135,7 +135,7 @@ def _create_nested_model(
 
 
 def create_extraction_model_from_schema(schema_path: str | Path) -> type[BaseModel]:
-    """Dynamically create a Pydantic model from an extraction schema.
+    """Dynamically create a Pydantic model from an extraction schema file.
 
     Args:
         schema_path: Path to JSON schema file (e.g., extraction_schema.json)
@@ -146,7 +146,27 @@ def create_extraction_model_from_schema(schema_path: str | Path) -> type[BaseMod
     with open(schema_path, "r") as f:
         schema = json.load(f)
 
+    return create_extraction_model_from_dict(schema)
+
+
+def create_extraction_model_from_dict(schema: dict[str, Any]) -> type[BaseModel]:
+    """Dynamically create a Pydantic model from an extraction schema dict.
+
+    Args:
+        schema: Schema dict containing fieldSchema.fields
+
+    Returns:
+        A dynamically generated Pydantic model class
+
+    Raises:
+        ValueError: If schema is invalid
+    """
     fields_schema = schema.get("fieldSchema", {}).get("fields", {})
+    if not fields_schema:
+        raise ValueError(
+            "Schema must contain 'fieldSchema.fields' with at least one field definition"
+        )
+
     created_models: dict[str, type[BaseModel]] = {}
     field_definitions: dict[str, tuple[type | Any, Field]] = {}  # type: ignore
 
@@ -235,3 +255,66 @@ def create_extraction_signature(
     }
 
     return type("DocumentExtractionSignature", (dspy.Signature,), signature_fields)
+
+
+# =============================================================================
+# Schema Validation
+# =============================================================================
+
+VALID_FIELD_TYPES = {"string", "number", "date", "integer", "boolean", "array", "object"}
+
+
+def validate_extraction_schema(schema: dict[str, Any]) -> list[str]:
+    """Validate an extraction schema dict and return a list of errors.
+
+    Args:
+        schema: Schema dict to validate
+
+    Returns:
+        Empty list if valid, otherwise list of error messages
+    """
+    errors: list[str] = []
+
+    if not isinstance(schema, dict):
+        return ["Schema must be a JSON object"]
+
+    field_schema = schema.get("fieldSchema")
+    if not isinstance(field_schema, dict):
+        errors.append("Schema must contain 'fieldSchema' object")
+        return errors
+
+    fields = field_schema.get("fields")
+    if not isinstance(fields, dict) or not fields:
+        errors.append("'fieldSchema.fields' must be a non-empty object")
+        return errors
+
+    for field_name, field_def in fields.items():
+        if not isinstance(field_def, dict):
+            errors.append(f"Field '{field_name}' must be an object")
+            continue
+
+        field_type = field_def.get("type", "string")
+        if field_type not in VALID_FIELD_TYPES:
+            errors.append(
+                f"Field '{field_name}' has invalid type '{field_type}'. "
+                f"Valid types: {', '.join(sorted(VALID_FIELD_TYPES))}"
+            )
+
+        if field_type == "array":
+            items = field_def.get("items")
+            if not isinstance(items, dict):
+                errors.append(f"Array field '{field_name}' must have an 'items' definition")
+
+        if field_type == "object":
+            props = field_def.get("properties")
+            if not isinstance(props, dict):
+                errors.append(f"Object field '{field_name}' must have a 'properties' definition")
+
+    # Attempt to create the Pydantic model as final validation
+    if not errors:
+        try:
+            create_extraction_model_from_dict(schema)
+        except Exception as e:
+            errors.append(f"Schema produces invalid model: {e}")
+
+    return errors

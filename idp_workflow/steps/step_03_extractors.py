@@ -25,6 +25,7 @@ from idp_workflow.tools import (
     AzureContentUnderstandingClient,
     calculate_confidence_scores,
     create_extraction_model_from_schema,
+    create_extraction_model_from_dict,
     create_extraction_signature,
 )
 
@@ -38,23 +39,40 @@ class AzureExtractor:
         self,
         domain_id: str,
         schema_path: Path | None = None,
+        schema_dict: dict | None = None,
     ):
-        """Initialize Azure extractor."""
+        """Initialize Azure extractor.
+
+        Args:
+            domain_id: Domain identifier for loading default schema
+            schema_path: Explicit path to schema file (overrides domain default)
+            schema_dict: Ad-hoc schema dict (overrides both domain default and schema_path)
+        """
         self.domain_id = domain_id
+        self._schema_dict = None
 
-        # Derive analyzer ID from domain - ensures one analyzer per domain
-        self.analyzer_id = f"analyzer_{domain_id.replace('-', '_')}"
+        if schema_dict is not None:
+            # Ad-hoc schema: use hash-based analyzer ID to avoid collisions
+            import hashlib
+            schema_hash = hashlib.sha256(
+                json.dumps(schema_dict, sort_keys=True).encode()
+            ).hexdigest()[:12]
+            self.analyzer_id = f"analyzer_adhoc_{schema_hash}"
+            self._schema_dict = schema_dict
+            self.schema_path = None
+        else:
+            # Domain-based: derive analyzer ID from domain
+            self.analyzer_id = f"analyzer_{domain_id.replace('-', '_')}"
 
-        # Set schema path - look for extraction_schema.json or analyzer_template.json
-        if schema_path is None:
-            domain_dir = DOMAINS_DIR / domain_id
-            schema_path = domain_dir / "extraction_schema.json"
-            if not schema_path.exists():
-                raise FileNotFoundError(
-                    f"Extraction schema not found for domain '{domain_id}' at {schema_path}"
-                )
+            if schema_path is None:
+                domain_dir = DOMAINS_DIR / domain_id
+                schema_path = domain_dir / "extraction_schema.json"
+                if not schema_path.exists():
+                    raise FileNotFoundError(
+                        f"Extraction schema not found for domain '{domain_id}' at {schema_path}"
+                    )
 
-        self.schema_path = Path(schema_path)
+            self.schema_path = Path(schema_path)
 
         # Initialize Azure Content Understanding client
         self.client = AzureContentUnderstandingClient(
@@ -150,16 +168,19 @@ class AzureExtractor:
         except Exception as e:
             logger.info(f"Analyzer {self.analyzer_id} not found, will create: {e}")
 
-        # Load schema from domain-specific path
-        if not self.schema_path.exists():
+        # Load schema from dict or file
+        if self._schema_dict is not None:
+            analyzer_template = self._schema_dict
+            logger.info(f"Using ad-hoc schema for analyzer: {self.analyzer_id}")
+        elif self.schema_path and self.schema_path.exists():
+            logger.info(f"Loading analyzer schema from: {self.schema_path}")
+            with open(self.schema_path, "r") as f:
+                analyzer_template = json.load(f)
+        else:
             raise FileNotFoundError(
-                f"Schema file not found: {self.schema_path}\n"
-                f"Make sure analyzer_template.json exists in the domain directory."
+                f"No schema available for analyzer {self.analyzer_id}. "
+                f"Provide schema_dict or ensure schema file exists."
             )
-
-        logger.info(f"Loading analyzer schema from: {self.schema_path}")
-        with open(self.schema_path, "r") as f:
-            analyzer_template = json.load(f)
 
         # Create analyzer
         logger.info(f"Creating analyzer: {self.analyzer_id}")
@@ -273,25 +294,37 @@ class DSPyExtractor:
         domain_id: str,
         lm: dspy.LM,
         schema_path: str | Path | None = None,
+        schema_dict: dict | None = None,
     ):
-        """Initialize DSPy extractor."""
+        """Initialize DSPy extractor.
+
+        Args:
+            domain_id: Domain identifier for loading default schema
+            lm: Configured DSPy language model
+            schema_path: Explicit path to schema file (overrides domain default)
+            schema_dict: Ad-hoc schema dict (overrides both domain default and schema_path)
+        """
         self.domain_id = domain_id
         self.lm = lm
 
-        # Load schema - use same extraction_schema.json as Azure CU
-        if schema_path is None:
-            domain_dir = DOMAINS_DIR / domain_id
-            schema_path = domain_dir / "extraction_schema.json"
-            if not schema_path.exists():
-                raise FileNotFoundError(
-                    f"Extraction schema not found for domain '{domain_id}' at {schema_path}"
-                )
+        if schema_dict is not None:
+            # Ad-hoc schema: create model from dict directly
+            logger.info("Loading DSPy extraction schema from ad-hoc dict")
+            self.extraction_model = create_extraction_model_from_dict(schema_dict)
+            self.schema_path = None
+        else:
+            # Load schema from file
+            if schema_path is None:
+                domain_dir = DOMAINS_DIR / domain_id
+                schema_path = domain_dir / "extraction_schema.json"
+                if not schema_path.exists():
+                    raise FileNotFoundError(
+                        f"Extraction schema not found for domain '{domain_id}' at {schema_path}"
+                    )
 
-        self.schema_path = Path(schema_path)
-
-        # Create extraction model from schema
-        logger.info(f"Loading DSPy extraction schema from: {self.schema_path}")
-        self.extraction_model = create_extraction_model_from_schema(self.schema_path)
+            self.schema_path = Path(schema_path)
+            logger.info(f"Loading DSPy extraction schema from: {self.schema_path}")
+            self.extraction_model = create_extraction_model_from_schema(self.schema_path)
 
         # Create extractor module
         self.extractor = DocumentExtractor(extraction_model=self.extraction_model)

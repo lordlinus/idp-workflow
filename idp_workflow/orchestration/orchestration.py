@@ -40,9 +40,10 @@ def _step_display(step_name: str):
     return _STEP_META.get(step_name, (step_name, 0))
 
 
-def _broadcast(context: DurableOrchestrationContext, event: str, data: dict):
+def _broadcast(context: DurableOrchestrationContext, user_id: str, event: str, data: dict):
     """Send a SignalR notification via the notify_user activity."""
     return context.call_activity("notify_user", {
+        "user_id": user_id,
         "instance_id": context.instance_id,
         "event": event,
         "data": data,
@@ -100,6 +101,10 @@ def register_orchestration(app):
         domain_id = workflow_input.domain_id
         pdf_path = workflow_input.pdf_path
         max_pages = workflow_input.max_pages
+        user_id = workflow_input.user_id
+        options = workflow_input.options
+        custom_extraction_schema = workflow_input.custom_extraction_schema
+        custom_classification_categories = workflow_input.custom_classification_categories
 
         # Initialize state and output container
         context.set_custom_status(f"[{request_id}] Initializing workflow")
@@ -116,7 +121,7 @@ def register_orchestration(app):
         try:
             # Broadcast step started via SignalR
             dn, sn = _step_display(STEP1_PDF_EXTRACTION)
-            yield _broadcast(context, "stepStarted", {
+            yield _broadcast(context, user_id, "stepStarted", {
                 "stepName": STEP1_PDF_EXTRACTION,
                 "displayName": dn,
                 "stepNumber": sn,
@@ -139,7 +144,7 @@ def register_orchestration(app):
             # Broadcast step completed via SignalR
 
             dn, sn = _step_display(STEP1_PDF_EXTRACTION)
-            yield _broadcast(context, "stepCompleted", {
+            yield _broadcast(context, user_id, "stepCompleted", {
                 "stepName": STEP1_PDF_EXTRACTION,
                 "displayName": dn,
                 "stepNumber": sn,
@@ -155,7 +160,7 @@ def register_orchestration(app):
             
             # Broadcast step failure via SignalR
             dn, sn = _step_display(STEP1_PDF_EXTRACTION)
-            yield _broadcast(context, "stepFailed", {
+            yield _broadcast(context, user_id, "stepFailed", {
                 "stepName": STEP1_PDF_EXTRACTION,
                 "displayName": dn,
                 "stepNumber": sn,
@@ -173,7 +178,7 @@ def register_orchestration(app):
         try:
             # Broadcast step started via SignalR
             dn, sn = _step_display(STEP2_CLASSIFICATION)
-            yield _broadcast(context, "stepStarted", {
+            yield _broadcast(context, user_id, "stepStarted", {
                 "stepName": STEP2_CLASSIFICATION,
                 "displayName": dn,
                 "stepNumber": sn,
@@ -187,6 +192,8 @@ def register_orchestration(app):
                     "domain_id": domain_id,
                     "request_id": request_id,
                     "max_pages": max_pages,
+                    "options": options,
+                    "custom_classification_categories": custom_classification_categories,
                 },
             )
 
@@ -201,7 +208,7 @@ def register_orchestration(app):
             # Broadcast step completed via SignalR
 
             dn, sn = _step_display(STEP2_CLASSIFICATION)
-            yield _broadcast(context, "stepCompleted", {
+            yield _broadcast(context, user_id, "stepCompleted", {
                 "stepName": STEP2_CLASSIFICATION,
                 "displayName": dn,
                 "stepNumber": sn,
@@ -217,7 +224,7 @@ def register_orchestration(app):
             
             # Broadcast step failure via SignalR
             dn, sn = _step_display(STEP2_CLASSIFICATION)
-            yield _broadcast(context, "stepFailed", {
+            yield _broadcast(context, user_id, "stepFailed", {
                 "stepName": STEP2_CLASSIFICATION,
                 "displayName": dn,
                 "stepNumber": sn,
@@ -236,7 +243,7 @@ def register_orchestration(app):
 
         # Broadcast step started via SignalR (Azure extraction)
         dn, sn = _step_display(STEP3_AZURE_EXTRACTION)
-        yield _broadcast(context, "stepStarted", {
+        yield _broadcast(context, user_id, "stepStarted", {
             "stepName": STEP3_AZURE_EXTRACTION,
             "displayName": dn,
             "stepNumber": sn,
@@ -245,7 +252,7 @@ def register_orchestration(app):
 
         # Broadcast step started via SignalR (DSPy extraction - concurrent)
         dn, sn = _step_display(STEP3_DSPY_EXTRACTION)
-        yield _broadcast(context, "stepStarted", {
+        yield _broadcast(context, user_id, "stepStarted", {
             "stepName": STEP3_DSPY_EXTRACTION,
             "displayName": dn,
             "stepNumber": sn,
@@ -259,6 +266,7 @@ def register_orchestration(app):
                 "domain_id": domain_id,
                 "max_pages": max_pages,
                 "request_id": request_id,
+                "custom_extraction_schema": custom_extraction_schema,
             }
 
             # DSPy takes Step 1's full_text (markdown)
@@ -267,6 +275,8 @@ def register_orchestration(app):
                 "total_pages": pdf_content_info.get("total_pages", 0),
                 "domain_id": domain_id,
                 "request_id": request_id,
+                "options": options,
+                "custom_extraction_schema": custom_extraction_schema,
             }
 
             # Create tasks for both extractors (they run in parallel)
@@ -310,7 +320,7 @@ def register_orchestration(app):
             # Broadcast Azure extraction completed via SignalR
 
             dn, sn = _step_display(STEP3_AZURE_EXTRACTION)
-            yield _broadcast(context, "stepCompleted", {
+            yield _broadcast(context, user_id, "stepCompleted", {
                 "stepName": STEP3_AZURE_EXTRACTION,
                 "displayName": dn,
                 "stepNumber": sn,
@@ -323,7 +333,7 @@ def register_orchestration(app):
             # Broadcast DSPy extraction completed via SignalR
 
             dn, sn = _step_display(STEP3_DSPY_EXTRACTION)
-            yield _broadcast(context, "stepCompleted", {
+            yield _broadcast(context, user_id, "stepCompleted", {
                 "stepName": STEP3_DSPY_EXTRACTION,
                 "displayName": dn,
                 "stepNumber": sn,
@@ -339,7 +349,7 @@ def register_orchestration(app):
             
             # Broadcast step failure via SignalR (for both extraction tasks)
             dn, sn = _step_display(STEP3_AZURE_EXTRACTION)
-            yield _broadcast(context, "stepFailed", {
+            yield _broadcast(context, user_id, "stepFailed", {
                 "stepName": STEP3_AZURE_EXTRACTION,
                 "displayName": dn,
                 "stepNumber": sn,
@@ -358,7 +368,7 @@ def register_orchestration(app):
 
         # Broadcast step started via SignalR
         dn, sn = _step_display(STEP4_COMPARISON)
-        yield _broadcast(context, "stepStarted", {
+        yield _broadcast(context, user_id, "stepStarted", {
             "stepName": STEP4_COMPARISON,
             "displayName": dn,
             "stepNumber": sn,
@@ -387,7 +397,7 @@ def register_orchestration(app):
             # Broadcast step completed via SignalR
 
             dn, sn = _step_display(STEP4_COMPARISON)
-            yield _broadcast(context, "stepCompleted", {
+            yield _broadcast(context, user_id, "stepCompleted", {
                 "stepName": STEP4_COMPARISON,
                 "displayName": dn,
                 "stepNumber": sn,
@@ -403,7 +413,7 @@ def register_orchestration(app):
             
             # Broadcast step failure via SignalR
             dn, sn = _step_display(STEP4_COMPARISON)
-            yield _broadcast(context, "stepFailed", {
+            yield _broadcast(context, user_id, "stepFailed", {
                 "stepName": STEP4_COMPARISON,
                 "displayName": dn,
                 "stepNumber": sn,
@@ -419,6 +429,15 @@ def register_orchestration(app):
         context.set_custom_status(f"[{request_id}] Step 5: Waiting for human review")
 
         hitl_start_time = context.current_utc_datetime
+
+        # Broadcast step started via SignalR
+        dn, sn = _step_display(STEP5_HUMAN_REVIEW)
+        yield _broadcast(context, user_id, "stepStarted", {
+            "stepName": STEP5_HUMAN_REVIEW,
+            "displayName": dn,
+            "stepNumber": sn,
+            "status": "in_progress",
+        })
 
         # Broadcast HITL waiting via SignalR
         # Include full comparison data for frontend review UI
@@ -448,7 +467,7 @@ def register_orchestration(app):
                 }
             )
 
-        yield _broadcast(context, "hitlWaiting", {
+        yield _broadcast(context, user_id, "hitlWaiting", {
             "fieldsForReview": step4_output.get("fields_needing_review", []),
             "timeoutSeconds": HITL_TIMEOUT_HOURS * 3600,
             "comparisonSummary": comparison_summary,
@@ -476,7 +495,7 @@ def register_orchestration(app):
                 )
 
                 # Broadcast HITL approved via SignalR
-                yield _broadcast(context, "hitlApproved", {
+                yield _broadcast(context, user_id, "hitlApproved", {
                     "reviewer": human_response.get("reviewer", "unknown"),
                     "feedback": human_response.get("feedback", ""),
                 })
@@ -486,7 +505,7 @@ def register_orchestration(app):
                 context.set_custom_status(f"[{request_id}] HITL: Changes requested")
 
                 # Broadcast HITL rejected via SignalR
-                yield _broadcast(context, "hitlRejected", {
+                yield _broadcast(context, user_id, "hitlRejected", {
                     "reviewer": human_response.get("reviewer", "unknown"),
                     "feedback": human_response.get("feedback", ""),
                 })
@@ -501,13 +520,31 @@ def register_orchestration(app):
             )
             raise TimeoutError(f"Human review timeout for request {request_id}")
 
+        # Broadcast step 5 completed via SignalR
+        dn, sn = _step_display(STEP5_HUMAN_REVIEW)
+        yield _broadcast(context, user_id, "stepCompleted", {
+            "stepName": STEP5_HUMAN_REVIEW,
+            "displayName": dn,
+            "stepNumber": sn,
+            "status": "completed",
+            "durationMs": int((context.current_utc_datetime - hitl_start_time).total_seconds() * 1000),
+            "outputPreview": f"{'Approved' if human_response.get('approved') else 'Rejected'} by {human_response.get('reviewer', 'unknown')}",
+            "outputData": {
+                "approved": human_response.get("approved", False),
+                "reviewer": human_response.get("reviewer", "unknown"),
+                "feedback": human_response.get("feedback", ""),
+                "accepted_values_count": len(human_response.get("accepted_values", {})),
+                "field_selections_count": len(human_response.get("field_selections", [])),
+            },
+        })
+
         # ====================================================================
         # STEP 6: REASONING AND SUMMARY (AI Foundry Agent with Tools)
         # ====================================================================
 
         # Broadcast step started via SignalR
         dn, sn = _step_display(STEP6_REASONING_AGENT)
-        yield _broadcast(context, "stepStarted", {
+        yield _broadcast(context, user_id, "stepStarted", {
             "stepName": STEP6_REASONING_AGENT,
             "displayName": dn,
             "stepNumber": sn,
@@ -549,7 +586,7 @@ def register_orchestration(app):
 
             # Chunk 1: Validations summary
             if step6_output.get("total_validations", 0) > 0:
-                yield _broadcast(context, "reasoningChunk", {
+                yield _broadcast(context, user_id, "reasoningChunk", {
                     "chunkType": "validation_summary",
                     "content": f"✓ Validation Results: {step6_output.get('passed_validations', 0)}/{step6_output.get('total_validations', 0)} passed",
                     "chunkIndex": chunk_index,
@@ -566,7 +603,7 @@ def register_orchestration(app):
                     step6_output.get("matching_fields", 0)
                     / step6_output.get("total_fields", 1)
                 ) * 100
-                yield _broadcast(context, "reasoningChunk", {
+                yield _broadcast(context, user_id, "reasoningChunk", {
                     "chunkType": "field_matching",
                     "content": f"📊 Field Matching: {step6_output.get('matching_fields', 0)}/{step6_output.get('total_fields', 0)} fields match ({matching_pct:.1f}%)",
                     "chunkIndex": chunk_index,
@@ -579,7 +616,7 @@ def register_orchestration(app):
                 chunk_index += 1
 
             # Chunk 3: Confidence score
-            yield _broadcast(context, "reasoningChunk", {
+            yield _broadcast(context, user_id, "reasoningChunk", {
                 "chunkType": "confidence",
                 "content": f"🎯 Confidence Score: {step6_output.get('confidence_score', 0):.2%}",
                 "chunkIndex": chunk_index,
@@ -591,7 +628,7 @@ def register_orchestration(app):
 
             # Chunk 4: AI Summary and recommendations (if available)
             if reasoning_data.get("ai_summary"):
-                yield _broadcast(context, "reasoningChunk", {
+                yield _broadcast(context, user_id, "reasoningChunk", {
                     "chunkType": "summary",
                     "content": reasoning_data.get("ai_summary", ""),
                     "chunkIndex": chunk_index,
@@ -602,7 +639,7 @@ def register_orchestration(app):
                 chunk_index += 1
 
             # Chunk 5: Final result
-            yield _broadcast(context, "reasoningChunk", {
+            yield _broadcast(context, user_id, "reasoningChunk", {
                 "chunkType": "final",
                 "content": "✅ Reasoning analysis complete",
                 "chunkIndex": chunk_index,
@@ -614,7 +651,7 @@ def register_orchestration(app):
             # Broadcast step completed via SignalR
 
             dn, sn = _step_display(STEP6_REASONING_AGENT)
-            yield _broadcast(context, "stepCompleted", {
+            yield _broadcast(context, user_id, "stepCompleted", {
                 "stepName": STEP6_REASONING_AGENT,
                 "displayName": dn,
                 "stepNumber": sn,
@@ -630,7 +667,7 @@ def register_orchestration(app):
             
             # Broadcast step failure via SignalR
             dn, sn = _step_display(STEP6_REASONING_AGENT)
-            yield _broadcast(context, "stepFailed", {
+            yield _broadcast(context, user_id, "stepFailed", {
                 "stepName": STEP6_REASONING_AGENT,
                 "displayName": dn,
                 "stepNumber": sn,
@@ -684,7 +721,7 @@ def register_orchestration(app):
         }
 
         # Broadcast workflow completed via SignalR
-        yield _broadcast(context, "workflowCompleted", {
+        yield _broadcast(context, user_id, "workflowCompleted", {
             "summary": {
                 "document_type": reasoning_data.get("document_type", primary_category),
                 "confidence_score": reasoning_data.get("confidence_score", 0),

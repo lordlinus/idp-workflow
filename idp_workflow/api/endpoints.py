@@ -221,35 +221,51 @@ def register_http_endpoints(app):
                 mimetype="application/json",
             )
 
-    @app.route(route="idp/history", methods=["GET"])
-    async def http_get_history(req: func.HttpRequest) -> func.HttpResponse:
-        """Get workflow history - simplified version without Durable Functions query.
+    @app.route(route="idp/workflow/{instanceId}/status", methods=["GET"])
+    @app.durable_client_input(client_name="client")
+    async def http_get_workflow_status(
+        req: func.HttpRequest,
+        client: DurableOrchestrationClient,
+    ) -> func.HttpResponse:
+        """Get current workflow status including completed step outputs.
         
-        Note: For full history functionality, you would need to store instance IDs
-        in a separate database or use the Durable Functions REST API directly.
-        For demo purposes, this returns an empty list with a message.
+        Used by the frontend to sync state after SignalR subscription,
+        catching any events that fired before the client connected.
         """
+        instance_id = req.route_params.get("instanceId")
+        if not instance_id:
+            return func.HttpResponse(
+                body=json.dumps({"error": "Missing instanceId"}),
+                status_code=400,
+                mimetype="application/json",
+            )
+
         try:
-            # For demo purposes, return empty history
-            # In production, you could:
-            # 1. Store instance IDs in a separate database/table
-            # 2. Use the Durable Functions REST API directly
-            # 3. Track instances in Azure Table Storage
-            
+            status = await client.get_status(instance_id, show_input=False)
+            if not status or not status.instance_id:
+                return func.HttpResponse(
+                    body=json.dumps({"error": "Workflow not found"}),
+                    status_code=404,
+                    mimetype="application/json",
+                )
+
             return func.HttpResponse(
                 body=json.dumps({
-                    "instances": [],
-                    "nextPageLink": None,
-                    "message": "History feature requires additional setup. Use the Instance ID from workflow start response to track workflows."
+                    "instanceId": status.instance_id,
+                    "runtimeStatus": str(status.runtime_status),
+                    "customStatus": status.custom_status,
+                    "output": status.output,
+                    "createdTime": status.created_time.isoformat() if status.created_time else None,
+                    "lastUpdatedTime": status.last_updated_time.isoformat() if status.last_updated_time else None,
                 }),
                 status_code=200,
                 mimetype="application/json",
             )
 
         except Exception as e:
-            logger.error(f"Error retrieving history: {e}")
+            logger.error(f"Error getting workflow status: {e}")
             return func.HttpResponse(
-                body=json.dumps({"error": f"Failed to retrieve history: {str(e)}"}),
+                body=json.dumps({"error": f"Failed to get status: {str(e)}"}),
                 status_code=500,
                 mimetype="application/json",
             )
@@ -277,11 +293,18 @@ def register_http_endpoints(app):
             # Use domain_id consistently
             domain_id = body.get("domain_id", "insurance_claims")
 
+            # Get user_id from header for SignalR user-targeted messaging
+            user_id = req.headers.get("x-user-id", "")
+
             workflow_input = WorkflowInitInput(
                 pdf_path=pdf_path,
                 domain_id=domain_id,
                 max_pages=body.get("max_pages", 50),
                 request_id=request_id,
+                user_id=user_id,
+                options=body.get("options", {}),
+                custom_extraction_schema=body.get("custom_extraction_schema"),
+                custom_classification_categories=body.get("custom_classification_categories"),
             )
 
             instance_id = await client.start_new(
@@ -313,6 +336,68 @@ def register_http_endpoints(app):
             logger.error(f"Error starting workflow: {e}")
             return func.HttpResponse(
                 body=json.dumps({"error": f"Failed to start workflow: {str(e)}"}),
+                status_code=500,
+                mimetype="application/json",
+            )
+
+    @app.route(route="idp/validate-schema", methods=["POST"])
+    async def http_validate_schema(req: func.HttpRequest) -> func.HttpResponse:
+        """Validate a custom extraction schema without starting a workflow."""
+        try:
+            body = req.get_json()
+            schema = body.get("schema")
+            if not schema:
+                return func.HttpResponse(
+                    body=json.dumps({"error": "Request body must contain 'schema' object"}),
+                    status_code=400,
+                    mimetype="application/json",
+                )
+
+            from idp_workflow.tools.dspy_utils import validate_extraction_schema
+            errors = validate_extraction_schema(schema)
+
+            if errors:
+                return func.HttpResponse(
+                    body=json.dumps({"valid": False, "errors": errors}),
+                    status_code=422,
+                    mimetype="application/json",
+                )
+
+            # Return field summary on success
+            fields = schema.get("fieldSchema", {}).get("fields", {})
+            field_summary = [
+                {"name": name, "type": defn.get("type", "string"), "description": defn.get("description", "")}
+                for name, defn in fields.items()
+            ]
+
+            return func.HttpResponse(
+                body=json.dumps({"valid": True, "fields": field_summary, "field_count": len(field_summary)}),
+                status_code=200,
+                mimetype="application/json",
+            )
+
+        except Exception as e:
+            logger.error(f"Error validating schema: {e}")
+            return func.HttpResponse(
+                body=json.dumps({"error": f"Failed to validate schema: {str(e)}"}),
+                status_code=500,
+                mimetype="application/json",
+            )
+
+    @app.route(route="idp/llm-providers", methods=["GET"])
+    async def http_get_llm_providers(req: func.HttpRequest) -> func.HttpResponse:
+        """List available LLM providers and their configuration."""
+        try:
+            from idp_workflow.tools.llm_factory import get_available_providers
+            providers = get_available_providers()
+            return func.HttpResponse(
+                body=json.dumps({"providers": providers}),
+                status_code=200,
+                mimetype="application/json",
+            )
+        except Exception as e:
+            return func.HttpResponse(
+                body=json.dumps({"error": str(e)}),
                 status_code=500,
                 mimetype="application/json",
             )
@@ -419,124 +504,20 @@ def register_signalr_endpoints(app):
         type="signalRConnectionInfo",
         hub_name="idpworkflow",
         connection_string_setting="AzureSignalRConnectionString",
+        user_id="{headers.x-user-id}",
     )
     async def negotiate(
         req: func.HttpRequest,
         connectionInfo: str,
     ) -> func.HttpResponse:
-        """Negotiate SignalR connection for clients."""
+        """Negotiate SignalR connection for clients (user-targeted)."""
         return func.HttpResponse(
             body=connectionInfo,
             status_code=200,
             mimetype="application/json",
         )
 
-    @app.route(
-        route="idp/subscribe/{instanceId}",
-        methods=["POST"],
-        auth_level=func.AuthLevel.ANONYMOUS,
-    )
-    @app.generic_output_binding(
-        arg_name="signalRGroupActions",
-        type="signalR",
-        hub_name="idpworkflow",
-        connection_string_setting="AzureSignalRConnectionString",
-    )
-    async def subscribe_to_workflow(
-        req: func.HttpRequest,
-        signalRGroupActions: func.Out[str],
-    ) -> func.HttpResponse:
-        """Subscribe a client to workflow updates."""
-        instance_id = req.route_params.get("instanceId")
-        connection_id = req.headers.get("x-signalr-connection-id")
 
-        if not instance_id:
-            return func.HttpResponse(
-                body=json.dumps({"error": "instanceId required"}),
-                status_code=400,
-                mimetype="application/json",
-            )
-
-        if not connection_id:
-            return func.HttpResponse(
-                body=json.dumps({"error": "x-signalr-connection-id header required"}),
-                status_code=400,
-                mimetype="application/json",
-            )
-
-        group_name = f"workflow-{instance_id}"
-
-        # Add connection to group
-        group_action = json.dumps(
-            {
-                "connectionId": connection_id,
-                "groupName": group_name,
-                "action": "add",
-            }
-        )
-        signalRGroupActions.set(group_action)
-
-        logger.info(f"Client {connection_id} subscribed to {group_name}")
-
-        return func.HttpResponse(
-            body=json.dumps(
-                {
-                    "message": "Subscribed to workflow updates",
-                    "instanceId": instance_id,
-                    "group": group_name,
-                }
-            ),
-            status_code=200,
-            mimetype="application/json",
-        )
-
-    @app.route(
-        route="idp/unsubscribe/{instanceId}",
-        methods=["POST"],
-        auth_level=func.AuthLevel.ANONYMOUS,
-    )
-    @app.generic_output_binding(
-        arg_name="signalRGroupActions",
-        type="signalR",
-        hub_name="idpworkflow",
-        connection_string_setting="AzureSignalRConnectionString",
-    )
-    async def unsubscribe_from_workflow(
-        req: func.HttpRequest,
-        signalRGroupActions: func.Out[str],
-    ) -> func.HttpResponse:
-        """Unsubscribe a client from a workflow's updates."""
-        instance_id = req.route_params.get("instanceId")
-        connection_id = req.headers.get("x-signalr-connection-id")
-
-        if not instance_id or not connection_id:
-            return func.HttpResponse(
-                body=json.dumps({"error": "instanceId and connection-id required"}),
-                status_code=400,
-                mimetype="application/json",
-            )
-
-        group_name = f"workflow-{instance_id}"
-
-        group_action = json.dumps(
-            {
-                "connectionId": connection_id,
-                "groupName": group_name,
-                "action": "remove",
-            }
-        )
-        signalRGroupActions.set(group_action)
-
-        return func.HttpResponse(
-            body=json.dumps(
-                {
-                    "message": "Unsubscribed from workflow updates",
-                    "instanceId": instance_id,
-                }
-            ),
-            status_code=200,
-            mimetype="application/json",
-        )
 
 
 

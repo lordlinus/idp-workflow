@@ -38,12 +38,28 @@ class DocumentClassificationSignature(dspy.Signature):
 class DocumentClassifier(dspy.Module):
     """DSPy module for document classification."""
 
-    def __init__(self, categories_json_path: Path):
-        """Initialize classifier with category definitions."""
+    def __init__(
+        self,
+        categories_json_path: Path | None = None,
+        categories: list[dict] | None = None,
+    ):
+        """Initialize classifier with category definitions.
+
+        Args:
+            categories_json_path: Path to classification_categories.json file
+            categories: Inline list of category dicts (overrides file path)
+        """
         super().__init__()
         self.classify = dspy.ChainOfThought(DocumentClassificationSignature)
-        with open(categories_json_path, "r") as f:
-            self.categories = json.load(f)
+
+        if categories is not None:
+            self.categories = categories
+        elif categories_json_path is not None:
+            with open(categories_json_path, "r") as f:
+                self.categories = json.load(f)
+        else:
+            raise ValueError("Either categories_json_path or categories must be provided")
+
         self.categories_desc = self._format_categories()
 
     def _format_categories(self) -> str:
@@ -68,14 +84,25 @@ class DocumentClassificationExecutor:
 
     def __init__(
         self,
-        categories_path: Path,
         lm: dspy.LM,
+        categories_path: Path | None = None,
+        categories: list[dict] | None = None,
         max_concurrent: int = DEFAULT_MAX_CONCURRENT_PAGES,
     ):
-        """Initialize classifier."""
+        """Initialize classifier.
+
+        Args:
+            lm: Configured DSPy language model
+            categories_path: Path to classification_categories.json
+            categories: Inline list of category dicts (overrides file path)
+            max_concurrent: Max concurrent page classification tasks
+        """
         self._max_concurrent = max_concurrent
         self.lm = lm
-        self.classifier = DocumentClassifier(categories_json_path=categories_path)
+        self.classifier = DocumentClassifier(
+            categories_json_path=categories_path,
+            categories=categories,
+        )
 
     def _classify_page_sync(self, page_content: str) -> DocumentClassificationOutput:
         """Synchronous classification wrapper with dspy.context()."""
