@@ -96,7 +96,7 @@ def register_http_endpoints(app):
 
     @app.route(route="idp/upload", methods=["POST"])
     async def http_upload_pdf(req: func.HttpRequest) -> func.HttpResponse:
-        """Upload PDF file to Azure Blob Storage."""
+        """Upload PDF file to Azure Blob Storage or local filesystem."""
         try:
             # Get file from multipart form
             if 'file' not in req.files:
@@ -107,45 +107,61 @@ def register_http_endpoints(app):
                 )
 
             file = req.files['file']
-            
-            # Get Azure Storage connection string from environment
-            conn_string = os.environ.get('AzureWebJobsStorage')
-            if not conn_string:
-                logger.error("AzureWebJobsStorage connection string not configured")
-                return func.HttpResponse(
-                    body=json.dumps({"error": "Storage not configured"}),
-                    status_code=500,
-                    mimetype="application/json",
-                )
+            file_data = file.read()
 
-            # Initialize blob service client
-            blob_service_client = BlobServiceClient.from_connection_string(conn_string)
-            container_client = blob_service_client.get_container_client('documents')
-
-            # Generate unique blob name
             timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
             file_id = str(uuid.uuid4())[:8]
-            blob_name = f"uploads/{timestamp}_{file_id}_{file.filename}"
+            safe_filename = f"{timestamp}_{file_id}_{file.filename}"
 
-            # Upload blob
-            file_data = file.read()
-            blob_client = container_client.upload_blob(blob_name, file_data, overwrite=True)
+            conn_string = os.environ.get('AzureWebJobsStorage', '')
+            use_local = not conn_string or conn_string.strip().lower() == 'usedevelopmentstorage=true'
 
-            # Build blob URI
-            account_name = blob_service_client.account_name
-            blob_uri = f"https://{account_name}.blob.core.windows.net/documents/{blob_name}"
+            if use_local:
+                # Local development: save to filesystem
+                from pathlib import Path
+                upload_dir = Path(os.environ.get('LOCAL_UPLOAD_DIR', '/tmp/idp_uploads'))
+                upload_dir.mkdir(parents=True, exist_ok=True)
+                local_path = str(upload_dir / safe_filename)
+                with open(local_path, 'wb') as f:
+                    f.write(file_data)
 
-            logger.info(f"PDF uploaded: {blob_name} ({len(file_data)} bytes)")
+                logger.info(f"PDF saved locally: {local_path} ({len(file_data)} bytes)")
 
-            return func.HttpResponse(
-                body=json.dumps({
-                    "blobPath": blob_name,
-                    "blobUri": blob_uri,
-                    "fileName": file.filename,
-                }),
-                status_code=200,
-                mimetype="application/json",
-            )
+                return func.HttpResponse(
+                    body=json.dumps({
+                        "blobPath": local_path,
+                        "blobUri": f"file://{local_path}",
+                        "fileName": file.filename,
+                    }),
+                    status_code=200,
+                    mimetype="application/json",
+                )
+            else:
+                # Azure: upload to Blob Storage
+                blob_service_client = BlobServiceClient.from_connection_string(conn_string)
+                container_client = blob_service_client.get_container_client('documents')
+                try:
+                    container_client.create_container()
+                except Exception:
+                    pass  # container already exists
+
+                blob_name = f"uploads/{safe_filename}"
+                container_client.upload_blob(blob_name, file_data, overwrite=True)
+
+                account_name = blob_service_client.account_name
+                blob_uri = f"https://{account_name}.blob.core.windows.net/documents/{blob_name}"
+
+                logger.info(f"PDF uploaded to blob: {blob_name} ({len(file_data)} bytes)")
+
+                return func.HttpResponse(
+                    body=json.dumps({
+                        "blobPath": blob_name,
+                        "blobUri": blob_uri,
+                        "fileName": file.filename,
+                    }),
+                    status_code=200,
+                    mimetype="application/json",
+                )
 
         except Exception as e:
             logger.error(f"Error uploading file: {e}")
