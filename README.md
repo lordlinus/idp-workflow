@@ -18,20 +18,12 @@ This IDP workflow processes documents through a sophisticated pipeline that comb
 
 ## ⚡ Quick Start
 
-### Option 1: Docker Compose (Easiest)
-```bash
-docker-compose up
-# Frontend: http://localhost:3000
-# Backend: http://localhost:7071/api
-```
-
-### Option 2: Manual Setup
 ```bash
 # Terminal 1: Backend
 source .venv/bin/activate && func start
 
 # Terminal 2: Frontend
-cd frontend-nextjs && npm run dev
+cd frontend && npm run dev
 ```
 
 **See [QUICK_START.md](./QUICK_START.md) for detailed setup instructions.**
@@ -39,8 +31,7 @@ cd frontend-nextjs && npm run dev
 ## 📁 Project Structure
 
 ```
-MAFAzFunc/
-├── frontend-nextjs/             # 🆕 Next.js 14 Frontend
+├── frontend/                    # 🆕 Next.js 14 Frontend
 │   ├── src/
 │   │   ├── app/                # Pages and layout
 │   │   ├── components/         # React components
@@ -57,7 +48,6 @@ MAFAzFunc/
 │   │   └── types/              # TypeScript types
 │   ├── package.json
 │   ├── tailwind.config.ts
-│   ├── Dockerfile
 │   └── README.md
 │
 ├── function_app.py              # Azure Functions entry point
@@ -73,6 +63,12 @@ MAFAzFunc/
 │   └── demo.http               # HTTP request examples
 │
 ├── sample_documents/            # Sample PDFs for testing
+│
+├── azure.yaml                   # Azure Developer CLI configuration
+├── infra/                       # Infrastructure as Code (Bicep)
+│   ├── main.bicep              # Main infrastructure template
+│   ├── core.bicep              # Core resource definitions
+│   └── main.parameters.json   # Parameter values
 │
 ├── QUICK_START.md              # ⭐ Get started in 5 minutes
 ├── SETUP_GUIDE.md              # Detailed setup & deployment
@@ -151,7 +147,7 @@ MAFAzFunc/
 - Python 3.13+
 - Azure Functions Core Tools v4
 - Azure account with:
-  - Azure OpenAI Service
+  - Azure API Management (APIM) gateway for LLM calls
   - Azure Document Intelligence
   - Azure SignalR Service
   - Azure Storage Account
@@ -162,7 +158,7 @@ MAFAzFunc/
 
    ```bash
    git clone <repository-url>
-   cd MAFAzFunc
+   cd <repository-name>
    ```
 
 2. **Create virtual environment**
@@ -180,11 +176,7 @@ MAFAzFunc/
 
 4. **Configure environment variables**
 
-   Copy `.env.example` to `local.settings.json` and fill in your Azure service credentials:
-
-   ```bash
-   cp .env.example local.settings.json
-   ```
+   Edit `local.settings.json` and fill in your Azure service credentials (see `local.settings.json` template in the repo):
 
    Required environment variables:
    - `AZURE_OPENAI_ENDPOINT`
@@ -306,32 +298,42 @@ curl -X POST http://localhost:7071/api/idp/hitl/review/{instanceId} \
   }'
 ```
 
-## 🚀 Deployment
+## 🚀 Deploy to Azure
 
-### Azure Deployment
+This project uses [Azure Developer CLI (azd)](https://learn.microsoft.com/azure/developer/azure-developer-cli/) for deployment.
 
-1. **Create Azure resources**
+### Prerequisites
+- [Azure Developer CLI](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd)
+- [Azure Functions Core Tools v4](https://learn.microsoft.com/azure/azure-functions/functions-run-tools)
+- [Node.js 18+](https://nodejs.org/)
+- [Python 3.13+](https://www.python.org/)
+- An Azure subscription with existing services:
+  - Azure SignalR Service
+  - Azure Document Intelligence
+  - Azure Cognitive Services (Content Understanding)
+  - Azure API Management (APIM) gateway for LLM calls
 
-   ```bash
-   az group create --name idp-workflow-rg --location eastus
-   az functionapp create --name <app-name> --resource-group idp-workflow-rg \
-     --consumption-plan-location eastus --runtime python --runtime-version 3.9 \
-     --os-type Linux --storage-account <storage-name>
-   ```
+### Deploy
+```bash
+# Initialize environment
+azd init --environment <env-name>
 
-2. **Configure app settings**
+# Configure external service connections
+azd env set AZURE_SIGNALR_CONNECTION_STRING "<value>"
+azd env set AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT "<value>"
+azd env set AZURE_DOCUMENT_INTELLIGENCE_KEY "<value>"
+azd env set COGNITIVE_SERVICES_ENDPOINT "<value>"
+azd env set COGNITIVE_SERVICES_KEY "<value>"
+azd env set AZURE_OPENAI_ENDPOINT "<your-apim-gateway-url>"
+azd env set AZURE_OPENAI_KEY "<your-apim-subscription-key>"
+azd env set AZURE_OPENAI_CHAT_DEPLOYMENT_NAME "gpt-4.1"
+azd env set AZURE_OPENAI_REASONING_DEPLOYMENT_NAME "o3-mini"
+azd env set AZURE_OPENAI_API_VERSION "2025-01-01-preview"
+azd env set TASKHUB_NAME "IDPWorkflow"
 
-   ```bash
-   az functionapp config appsettings set --name <app-name> \
-     --resource-group idp-workflow-rg \
-     --settings @local.settings.json
-   ```
-
-3. **Deploy the function app**
-
-   ```bash
-   func azure functionapp publish <app-name>
-   ```
+# Provision infrastructure and deploy
+azd up
+```
 
 ## 📖 Documentation
 

@@ -1,4 +1,4 @@
-# Copilot Instructions — MAFAzFunc (IDP Workflow)
+# Copilot Instructions — IDP Workflow
 
 ## Build & Run
 
@@ -10,15 +10,12 @@ pip install -r requirements.txt
 
 # Run locally (requires Azure Functions Core Tools v4)
 func start
-
-# Docker (includes Azurite storage emulator + frontend)
-docker-compose up
 ```
 
-### Frontend (Next.js, in `frontend-nextjs/`)
+### Frontend (Next.js, in `frontend/`)
 
 ```bash
-cd frontend-nextjs
+cd frontend
 npm install
 npm run dev          # Dev server on :3000
 npm run build        # Production build

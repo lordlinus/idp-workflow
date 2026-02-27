@@ -28,12 +28,10 @@ poll_status.sh
 UI_QUICK_REFERENCE.md
 Agents.md
 frontend/
-frontend-nextjs/
+frontend/
 infra/
 .azure/
 .github/
 azure.yaml
-docker-compose.yml
-Dockerfile.backend
 README.md
 __pycache__

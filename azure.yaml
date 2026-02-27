@@ -7,7 +7,7 @@ services:
     language: python
     host: function
   frontend:
-    project: frontend-nextjs
+    project: frontend
     language: js
     host: staticwebapp
     dist: out

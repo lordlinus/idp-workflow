@@ -33,7 +33,7 @@ Professional, real-time UI for Intelligent Document Processing workflow with Azu
 ### Installation
 
 ```bash
-cd frontend-nextjs
+cd frontend
 npm install
 ```
 
