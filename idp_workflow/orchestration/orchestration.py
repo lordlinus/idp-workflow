@@ -149,7 +149,7 @@ def register_orchestration(app):
                 "displayName": dn,
                 "stepNumber": sn,
                 "status": "completed",
-                "durationMs": 0,
+                "durationMs": step1_output.get("processing_time_ms", 0),
                 "outputPreview": _generate_output_preview(step1_output, STEP1_PDF_EXTRACTION),
                 "outputData": step1_output,
             })
@@ -213,7 +213,7 @@ def register_orchestration(app):
                 "displayName": dn,
                 "stepNumber": sn,
                 "status": "completed",
-                "durationMs": 0,
+                "durationMs": step2_output.get("processing_time_ms", 0),
                 "outputPreview": _generate_output_preview(step2_output, STEP2_CLASSIFICATION),
                 "outputData": step2_output,
             })

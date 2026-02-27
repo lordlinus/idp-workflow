@@ -1,6 +1,7 @@
 """Activity functions for the IDP workflow."""
 
 import logging
+import time
 
 from idp_workflow.models import PDFContent
 
@@ -25,6 +26,8 @@ def register_activities(app):
 
             logger.info(f"[{request_id}] Starting PDF extraction: {pdf_path}")
 
+            start_time = time.time()
+
             extractor = PDFMarkdownExtractor(
                 endpoint=AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT,
                 api_key=AZURE_DOCUMENT_INTELLIGENCE_KEY,
@@ -32,9 +35,14 @@ def register_activities(app):
 
             pdf_content, step_output = await extractor.extract(pdf_path)  # type: ignore
 
+            processing_time_ms = round((time.time() - start_time) * 1000)
+
             logger.info(
-                f"[{request_id}] PDF extraction complete: {step_output.total_pages} pages"
+                f"[{request_id}] PDF extraction complete: {step_output.total_pages} pages in {processing_time_ms}ms"
             )
+
+            step_output_dict = step_output.model_dump()
+            step_output_dict["processing_time_ms"] = processing_time_ms
 
             return {
                 "pdf_content": {
@@ -45,7 +53,7 @@ def register_activities(app):
                     "characters": len(pdf_content.full_text),
                     "pages_count": len(pdf_content.pages),
                 },
-                "step_output": step_output.model_dump(),
+                "step_output": step_output_dict,
             }
         except Exception as e:
             logger.error(
@@ -67,6 +75,8 @@ def register_activities(app):
             custom_categories = classify_request.get("custom_classification_categories")
 
             logger.info(f"[{request_id}] Starting document classification")
+
+            start_time = time.time()
 
             pdf_content_dict = classify_request.get("pdf_content", {})
             pdf_content = PDFContent(
@@ -98,9 +108,11 @@ def register_activities(app):
                 pdf_content, max_pages=max_pages
             )
 
+            processing_time_ms = round((time.time() - start_time) * 1000)
+
             logger.info(
                 f"[{request_id}] Classification complete: "
-                f"{step_output.pages_classified} pages classified"
+                f"{step_output.pages_classified} pages classified in {processing_time_ms}ms"
             )
 
             return {
@@ -123,6 +135,7 @@ def register_activities(app):
                 },
                 "classifications": step_output.model_dump(),
                 "primary_category": step_output.primary_category,
+                "processing_time_ms": processing_time_ms,
             }
         except Exception as e:
             logger.error(
