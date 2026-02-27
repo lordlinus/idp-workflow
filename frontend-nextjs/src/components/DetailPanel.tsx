@@ -738,12 +738,20 @@ function CompletionDashboard() {
 // Extraction Schema Viewer
 function ExtractionSchemaView() {
   const domainId = useWorkflowStore((state) => state.domain_id);
+  const customSchema = useWorkflowStore((state) => state.customSchema);
   const [schema, setSchema] = React.useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [expandedFields, setExpandedFields] = React.useState<Set<string>>(new Set());
 
+  // Use custom schema directly if available, otherwise fetch from domain API
   React.useEffect(() => {
+    if (customSchema) {
+      setSchema(customSchema as unknown as Record<string, unknown>);
+      setLoading(false);
+      setError(null);
+      return;
+    }
     if (!domainId) return;
     setLoading(true);
     setError(null);
@@ -754,9 +762,9 @@ function ExtractionSchemaView() {
       })
       .catch((err) => setError(err?.message || 'Failed to load schema'))
       .finally(() => setLoading(false));
-  }, [domainId]);
+  }, [domainId, customSchema]);
 
-  if (!domainId) {
+  if (!domainId && !customSchema) {
     return (
       <div className="text-center py-8 text-dark-400">
         <span className="text-3xl block mb-2">📋</span>
@@ -816,8 +824,10 @@ function ExtractionSchemaView() {
     <div className="space-y-4">
       {/* Schema header */}
       <div className="rounded-lg bg-dark-900 border border-dark-700 p-3">
-        <p className="text-xs font-mono text-dark-400 mb-1">Domain</p>
-        <p className="text-sm text-dark-200 font-semibold capitalize">{domainId.replace(/_/g, ' ')}</p>
+        <p className="text-xs font-mono text-dark-400 mb-1">{customSchema ? 'Custom Schema' : 'Domain'}</p>
+        <p className="text-sm text-dark-200 font-semibold capitalize">
+          {customSchema ? 'Ad-hoc Schema' : domainId?.replace(/_/g, ' ') ?? 'Unknown'}
+        </p>
         {description && (
           <p className="text-xs text-dark-400 mt-1.5">{description}</p>
         )}

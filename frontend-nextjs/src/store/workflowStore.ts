@@ -9,6 +9,7 @@ import {
   DomainId,
   HITLWaitingData,
   FieldComparison,
+  ExtractionSchema,
 } from '@/types';
 
 // Enable Immer's MapSet plugin for Map/Set support
@@ -24,6 +25,7 @@ interface WorkflowState {
   startedAt: string | null;
   llmProvider: string | null;
   llmModel: string | null;
+  customSchema: ExtractionSchema | null;
 
   // UI state
   selectedStep: StepName | null;
@@ -34,7 +36,7 @@ interface WorkflowState {
   hitlFeedback: string | null;
 
   // Actions
-  initializeWorkflow: (instanceId: string, domain_id: DomainId, llmProvider?: string, llmModel?: string) => void;
+  initializeWorkflow: (instanceId: string, domain_id: DomainId, llmProvider?: string, llmModel?: string, customSchema?: ExtractionSchema | null) => void;
   setStatus: (status: WorkflowState['status']) => void;
   updateStep: (stepName: StepName, updates: Partial<Step>) => void;
   setCurrentStep: (stepNumber: number) => void;
@@ -54,6 +56,7 @@ const initialState = {
   startedAt: null,
   llmProvider: null,
   llmModel: null,
+  customSchema: null,
   selectedStep: null,
   hitlWaiting: null,
   hitlStatus: null,
@@ -64,7 +67,7 @@ export const useWorkflowStore = create<WorkflowState>()(
   immer((set) => ({
     ...initialState,
 
-    initializeWorkflow: (instanceId: string, domain_id: DomainId, llmProvider?: string, llmModel?: string) => {
+    initializeWorkflow: (instanceId: string, domain_id: DomainId, llmProvider?: string, llmModel?: string, customSchema?: ExtractionSchema | null) => {
       set((state) => {
         state.instanceId = instanceId;
         state.domain_id = domain_id;
@@ -72,6 +75,7 @@ export const useWorkflowStore = create<WorkflowState>()(
         state.startedAt = new Date().toISOString();
         state.llmProvider = llmProvider || null;
         state.llmModel = llmModel || null;
+        state.customSchema = customSchema || null;
       });
     },
 

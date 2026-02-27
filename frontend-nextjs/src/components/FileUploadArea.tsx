@@ -231,7 +231,7 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
       });
 
       // Initialize workflow store
-      initializeWorkflow(workflowResponse.instanceId, domainId, llmProvider, llmModel || undefined);
+      initializeWorkflow(workflowResponse.instanceId, domainId, llmProvider, llmModel || undefined, advancedOptions.custom_extraction_schema);
 
       // Sync any missed state
       await signalR.syncStatus(workflowResponse.instanceId);
