@@ -7,6 +7,38 @@ import { StepName, TOTAL_STEPS } from '@/types';
 import { apiClient } from '@/lib/apiClient';
 import clsx from 'clsx';
 
+/** Render a value: detects JSON strings, objects, and plain text */
+function ValueDisplay({ value }: { value: unknown }) {
+  if (value === null || value === undefined) return <span className="text-dark-500">—</span>;
+
+  // Already an object/array — render as formatted JSON
+  if (typeof value === 'object') {
+    return (
+      <pre className="whitespace-pre-wrap break-words text-xs font-mono text-dark-200">
+        {JSON.stringify(value, null, 2)}
+      </pre>
+    );
+  }
+
+  const str = String(value);
+
+  // Detect JSON strings: starts with [{ or { or [
+  if (/^\s*[\[{]/.test(str)) {
+    try {
+      const parsed = JSON.parse(str);
+      return (
+        <pre className="whitespace-pre-wrap break-words text-xs font-mono text-dark-200">
+          {JSON.stringify(parsed, null, 2)}
+        </pre>
+      );
+    } catch {
+      // Not valid JSON, fall through to plain text
+    }
+  }
+
+  return <span className="break-words">{str}</span>;
+}
+
 const STEP_INFO: Record<string, { displayName: string; description: string; icon: string }> = {
   step_01_pdf_extraction: {
     displayName: 'PDF Extractor',
@@ -290,11 +322,9 @@ function StepOutputView({ stepName }: { stepName: StepName }) {
                 {Object.entries(extractedData).map(([key, value]) => (
                   <div key={key} className="rounded bg-dark-800 px-3 py-2">
                     <p className="text-xs font-mono text-dark-400 mb-0.5">{key}</p>
-                    <p className="text-sm text-dark-100 break-words">
-                      {typeof value === 'object' && value !== null
-                        ? JSON.stringify(value, null, 2)
-                        : String(value ?? '—')}
-                    </p>
+                    <div className="text-sm text-dark-100">
+                      <ValueDisplay value={value} />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -365,13 +395,7 @@ function StepOutputView({ stepName }: { stepName: StepName }) {
           <div key={key} className="rounded-lg bg-dark-900 p-3 border border-dark-700">
             <p className="text-xs font-mono text-dark-400 mb-1">{key}</p>
             <div className="text-sm text-dark-200">
-              {typeof value === 'object' ? (
-                <pre className="whitespace-pre-wrap break-words text-xs font-mono">
-                  {JSON.stringify(value, null, 2)}
-                </pre>
-              ) : (
-                <p className="break-words">{String(value)}</p>
-              )}
+              <ValueDisplay value={value} />
             </div>
           </div>
         ))}
