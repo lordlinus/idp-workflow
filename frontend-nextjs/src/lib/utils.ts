@@ -41,15 +41,15 @@ export const STEP_DISPLAY_NAMES: Record<string, string> = {
  */
 export function formatDuration(ms: number): string {
   if (ms < 1000) {
-    return `${ms}ms`;
+    return `${Math.round(ms)}ms`;
   }
-  const seconds = Math.round(ms / 1000);
+  const seconds = ms / 1000;
   if (seconds < 60) {
-    return `${seconds}s`;
+    return `${Math.round(seconds)}s`;
   }
   const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes}m ${remainingSeconds}s`;
+  const remainingSeconds = Math.round(seconds % 60);
+  return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
 }
 
 /**
