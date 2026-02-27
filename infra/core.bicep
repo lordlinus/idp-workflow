@@ -85,6 +85,11 @@ resource deploymentContainer 'Microsoft.Storage/storageAccounts/blobServices/con
   name: 'deploymentpackage'
 }
 
+resource documentsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'documents'
+}
+
 // ── Network Security Perimeter (restrict storage public access) ─────────────
 
 resource networkSecurityPerimeter 'Microsoft.Network/networkSecurityPerimeters@2023-07-01-preview' = {

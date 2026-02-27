@@ -20,9 +20,13 @@ def register_activities(app):
                 AZURE_DOCUMENT_INTELLIGENCE_KEY,
             )
             from idp_workflow.steps.step_01_pdf_extractor import PDFMarkdownExtractor
+            from idp_workflow.utils.helpers import resolve_pdf_path
 
             pdf_path = extract_request.get("pdf_path")
             request_id = extract_request.get("request_id")
+
+            # Resolve blob paths to local temp files
+            pdf_path = resolve_pdf_path(pdf_path)
 
             logger.info(f"[{request_id}] Starting PDF extraction: {pdf_path}")
 
@@ -150,6 +154,7 @@ def register_activities(app):
         """Extract data using Azure Content Understanding."""
         try:
             from idp_workflow.steps.step_03_extractors import AzureExtractor
+            from idp_workflow.utils.helpers import resolve_pdf_path
 
             request_id = extract_request.get("request_id")
             domain_id = extract_request.get("domain_id", "insurance_claims")
@@ -159,6 +164,9 @@ def register_activities(app):
 
             if not pdf_path:
                 raise ValueError("pdf_path is required for Azure extraction")
+
+            # Resolve blob paths to local temp files
+            pdf_path = resolve_pdf_path(pdf_path)
 
             logger.info(
                 f"[{request_id}] Starting Azure CU extraction from PDF: {pdf_path}"

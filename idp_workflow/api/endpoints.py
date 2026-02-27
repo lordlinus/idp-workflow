@@ -188,10 +188,10 @@ def register_http_endpoints(app):
 
     @app.route(route="idp/demo/{domain_id}", methods=["POST"])
     async def http_use_demo_document(req: func.HttpRequest) -> func.HttpResponse:
-        """Use a demo document for the specified domain from sample_documents folder.
+        """Use a demo document for the specified domain.
 
-        Returns the local file path directly for local development.
-        The PDF extractor already supports local file paths.
+        In Azure: returns blob path from the documents container.
+        Locally: returns local file path from sample_documents/.
         """
         try:
             domain_id = req.route_params.get("domain_id")
@@ -219,37 +219,84 @@ def register_http_endpoints(app):
                     mimetype="application/json",
                 )
 
-            # Get the sample document path (absolute path for local file processing)
-            import pathlib
+            filename = demo_files[domain_id]
+            storage_account_name = os.environ.get("AZURE_STORAGE_ACCOUNT_NAME", "")
+            use_local = not storage_account_name
 
-            project_root = pathlib.Path(__file__).parent.parent.parent
-            sample_path = project_root / "sample_documents" / demo_files[domain_id]
+            if use_local:
+                # Local development: return local file path
+                import pathlib
 
-            if not sample_path.exists():
+                project_root = pathlib.Path(__file__).parent.parent.parent
+                sample_path = project_root / "sample_documents" / filename
+
+                if not sample_path.exists():
+                    return func.HttpResponse(
+                        body=json.dumps(
+                            {"error": f"Demo document not found: {filename}"}
+                        ),
+                        status_code=404,
+                        mimetype="application/json",
+                    )
+
+                local_path = str(sample_path.absolute())
+                logger.info(f"Using demo document (local): {local_path}")
+
                 return func.HttpResponse(
                     body=json.dumps(
-                        {"error": f"Demo document not found: {demo_files[domain_id]}"}
+                        {
+                            "blobPath": local_path,
+                            "blobUri": f"file://{local_path}",
+                            "fileName": filename,
+                            "domain_id": domain_id,
+                        }
                     ),
-                    status_code=404,
+                    status_code=200,
                     mimetype="application/json",
                 )
+            else:
+                # Azure: return blob path from documents container
+                blob_name = f"sample-documents/{filename}"
+                account_url = (
+                    f"https://{storage_account_name}.blob.core.windows.net"
+                )
+                blob_service_client = BlobServiceClient(
+                    account_url=account_url,
+                    credential=DefaultAzureCredential(),
+                )
+                blob_client = blob_service_client.get_blob_client(
+                    "documents", blob_name
+                )
 
-            # Return the local file path - the PDF extractor supports local paths
-            local_path = str(sample_path.absolute())
-            logger.info(f"Using demo document: {local_path}")
+                if not blob_client.exists():
+                    return func.HttpResponse(
+                        body=json.dumps(
+                            {
+                                "error": f"Demo document not found in blob storage: {blob_name}"
+                            }
+                        ),
+                        status_code=404,
+                        mimetype="application/json",
+                    )
 
-            return func.HttpResponse(
-                body=json.dumps(
-                    {
-                        "blobPath": local_path,
-                        "blobUri": f"file://{local_path}",
-                        "fileName": demo_files[domain_id],
-                        "domain_id": domain_id,
-                    }
-                ),
-                status_code=200,
-                mimetype="application/json",
-            )
+                blob_uri = (
+                    f"https://{storage_account_name}.blob.core.windows.net"
+                    f"/documents/{blob_name}"
+                )
+                logger.info(f"Using demo document (blob): {blob_name}")
+
+                return func.HttpResponse(
+                    body=json.dumps(
+                        {
+                            "blobPath": blob_name,
+                            "blobUri": blob_uri,
+                            "fileName": filename,
+                            "domain_id": domain_id,
+                        }
+                    ),
+                    status_code=200,
+                    mimetype="application/json",
+                )
 
         except Exception as e:
             logger.error(f"Error using demo document: {e}")

@@ -1,6 +1,10 @@
 name: idp-workflow
 metadata:
   template: idp-workflow@0.0.1
+hooks:
+  postdeploy:
+    shell: sh
+    run: ./hooks/postdeploy.sh
 services:
   api:
     project: .
