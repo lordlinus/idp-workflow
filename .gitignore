@@ -50,3 +50,6 @@ __queuestorage__
 __azurite_db*__.json
 AzuriteConfig_bak
 .env.old
+
+# Azure Developer CLI
+.azure/

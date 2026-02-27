@@ -1,0 +1,21 @@
+name: idp-workflow
+metadata:
+  template: idp-workflow@0.0.1
+services:
+  api:
+    project: .
+    language: python
+    host: function
+  frontend:
+    project: frontend-nextjs
+    language: js
+    host: staticwebapp
+    dist: out
+    hooks:
+      prebuild:
+        shell: sh
+        run: npm install
+      build:
+        shell: sh
+        run: NEXT_PUBLIC_API_BASE_URL="${SERVICE_API_URI}" npm run build
+
