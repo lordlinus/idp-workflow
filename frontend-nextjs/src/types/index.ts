@@ -87,8 +87,8 @@ export interface StepFailedData {
 // HITL Types
 export interface FieldComparison {
   fieldName: string;
-  azureValue: string | number | null;
-  dspyValue: string | number | null;
+  azureValue: unknown;
+  dspyValue: unknown;
   match: boolean;
   confidence?: number;
   needsReview: boolean;
@@ -110,9 +110,9 @@ export interface HITLWaitingData {
 export interface FieldSelection {
   field_name: string;
   selected_source: 'azure' | 'dspy' | 'manual';
-  selected_value: string | number | null;
-  azure_value?: string | number | null;
-  dspy_value?: string | number | null;
+  selected_value: unknown;
+  azure_value?: unknown;
+  dspy_value?: unknown;
   notes?: string;
 }
 
@@ -120,7 +120,7 @@ export interface HITLReviewSubmission {
   approved: boolean;
   feedback?: string;
   reviewer?: string;
-  accepted_values: Record<string, string | number | null>;
+  accepted_values: Record<string, unknown>;
   field_selections: FieldSelection[];
   default_source?: 'azure' | 'dspy' | 'comparison';
 }

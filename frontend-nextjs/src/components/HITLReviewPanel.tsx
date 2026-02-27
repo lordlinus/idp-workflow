@@ -5,6 +5,37 @@ import { useSubmitHITLReview } from '@/lib/queryKeys';
 import { FieldSelection, FieldComparison } from '@/types';
 import clsx from 'clsx';
 
+/**
+ * Safely format a field value for display.
+ * Handles objects, arrays, nulls, and primitives.
+ */
+function formatFieldValue(value: unknown): string {
+  if (value === null || value === undefined) return '—';
+  if (typeof value === 'string') return value || '—';
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) {
+    return value
+      .map((item, i) =>
+        typeof item === 'object' && item !== null
+          ? Object.entries(item)
+              .filter(([, v]) => v !== null && v !== undefined && v !== '')
+              .map(([k, v]) => `${k}: ${v}`)
+              .join(', ')
+          : String(item)
+      )
+      .join('\n');
+  }
+  if (typeof value === 'object') {
+    return Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== null && v !== undefined && v !== '')
+      .map(([k, v]) =>
+        typeof v === 'object' ? `${k}: ${JSON.stringify(v)}` : `${k}: ${v}`
+      )
+      .join('\n');
+  }
+  return String(value);
+}
+
 type FilterTab = 'all' | 'conflicts' | 'matching';
 
 export function HITLReviewPanel() {
@@ -300,7 +331,7 @@ export function HITLReviewPanel() {
                           />
                           <span className="text-sm font-medium text-blue-300">Azure</span>
                         </label>
-                        <p className="text-sm text-dark-50 break-words">{field.azureValue}</p>
+                        <pre className="text-sm text-dark-50 break-words whitespace-pre-wrap font-sans">{formatFieldValue(field.azureValue)}</pre>
                       </div>
 
                       {/* DSPy Value */}
@@ -317,7 +348,7 @@ export function HITLReviewPanel() {
                           />
                           <span className="text-sm font-medium text-purple-300">DSPy{llmProvider && llmProvider !== 'azure_openai' ? ` (${llmModel || llmProvider})` : ''}</span>
                         </label>
-                        <p className="text-sm text-dark-50 break-words">{field.dspyValue}</p>
+                        <pre className="text-sm text-dark-50 break-words whitespace-pre-wrap font-sans">{formatFieldValue(field.dspyValue)}</pre>
                       </div>
                     </div>
 
@@ -338,7 +369,7 @@ export function HITLReviewPanel() {
                       {selection?.selected_source === 'manual' && (
                         <input
                           type="text"
-                          value={selection.selected_value || ''}
+                          value={typeof selection.selected_value === 'string' ? selection.selected_value : ''}
                           onChange={(e) => handleManualValueChange(field.fieldName, e.target.value)}
                           disabled={isSubmitting}
                           className="input-base text-sm"

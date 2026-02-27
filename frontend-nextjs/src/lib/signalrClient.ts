@@ -52,7 +52,10 @@ class SignalRClient {
       await this.connection.start();
       useUIStore.setState({ connectionStatus: 'connected' });
     } catch (error) {
-      console.error('SignalR connection error:', error);
+      // Suppress server-timeout errors, only log unexpected failures
+      if (error instanceof Error && !/timeout/i.test(error.message)) {
+        console.error('SignalR connection error:', error);
+      }
       useUIStore.setState({ connectionStatus: 'error' });
       throw error;
     } finally {
@@ -187,20 +190,25 @@ class SignalRClient {
       });
     });
 
-    // Connection State Changes
-    this.connection.onreconnecting(() => {
+    // Connection State Changes — suppress noisy timeout/disconnect errors
+    this.connection.onreconnecting((error) => {
       useUIStore.setState({ connectionStatus: 'reconnecting' });
-      console.log('SignalR reconnecting...');
+      // Suppress server-timeout errors; only log unexpected reconnect reasons
+      if (error && !/timeout/i.test(error.message)) {
+        console.log('SignalR reconnecting:', error.message);
+      }
     });
 
     this.connection.onreconnected(async () => {
       useUIStore.setState({ connectionStatus: 'connected' });
-      console.log('SignalR reconnected');
     });
 
-    this.connection.onclose(() => {
+    this.connection.onclose((error) => {
       useUIStore.setState({ connectionStatus: 'disconnected' });
-      console.log('SignalR disconnected');
+      // Suppress server-timeout disconnect errors
+      if (error && !/timeout/i.test(error.message)) {
+        console.log('SignalR disconnected:', error.message);
+      }
     });
   }
 }

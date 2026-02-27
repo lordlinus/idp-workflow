@@ -52,6 +52,14 @@ class AzureExtractor:
         self._schema_dict = None
 
         if schema_dict is not None:
+            # Ensure required root-level properties for Azure CU API
+            if "baseAnalyzerId" not in schema_dict:
+                schema_dict["baseAnalyzerId"] = "prebuilt-document"
+            if "scenario" not in schema_dict:
+                schema_dict["scenario"] = "document"
+            if "models" not in schema_dict or not schema_dict["models"].get("completion"):
+                schema_dict.setdefault("models", {})["completion"] = "gpt-4.1"
+
             # Ad-hoc schema: use hash-based analyzer ID to avoid collisions
             import hashlib
             schema_hash = hashlib.sha256(
