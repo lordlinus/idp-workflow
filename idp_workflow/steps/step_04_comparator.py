@@ -8,12 +8,7 @@ from typing import Any
 import dspy
 from pydantic import BaseModel, Field
 
-from idp_workflow.config import (
-    AZURE_OPENAI_CHAT_DEPLOYMENT_NAME,
-    AZURE_OPENAI_ENDPOINT,
-    AZURE_OPENAI_API_VERSION,
-    AZURE_OPENAI_KEY,
-)
+
 
 logger = logging.getLogger(__name__)
 
@@ -116,14 +111,101 @@ def create_matching_field_analysis(
 
 
 def normalize_value(value: Any) -> str:
-    """Normalize a value for comparison (strip whitespace, lowercase strings)."""
+    """Normalize a value for comparison.
+    
+    Handles common formatting differences between Azure CU and DSPy outputs:
+    - Whitespace collapsing and stripping
+    - Currency symbol removal
+    - Number formatting (commas, leading zeros)
+    - Date format normalization
+    - Unicode normalization (curly quotes, dashes)
+    - Trailing punctuation
+    """
     if value is None:
         return ""
-    if isinstance(value, str):
-        return value.strip().lower()
     if isinstance(value, (int, float)):
+        # Normalize numeric: remove trailing .0 for integers
+        if isinstance(value, float) and value == int(value):
+            return str(int(value))
         return str(value)
-    return str(value).strip().lower()
+    if isinstance(value, list):
+        # Normalize lists by sorting and normalizing each element
+        return json.dumps([normalize_value(v) for v in value], sort_keys=True)
+    if isinstance(value, dict):
+        return json.dumps({k: normalize_value(v) for k, v in sorted(value.items())}, sort_keys=True)
+
+    s = str(value)
+
+    # Unicode normalization: curly quotes → straight, em-dash → hyphen
+    s = s.replace('\u2018', "'").replace('\u2019', "'")  # curly single quotes
+    s = s.replace('\u201c', '"').replace('\u201d', '"')   # curly double quotes
+    s = s.replace('\u2013', '-').replace('\u2014', '-')   # en-dash, em-dash
+    s = s.replace('\u00a0', ' ')                          # non-breaking space
+
+    # Strip and collapse whitespace
+    s = ' '.join(s.split())
+
+    # Lowercase
+    s = s.lower()
+
+    # Remove currency symbols and common prefixes
+    for symbol in ['$', '€', '£', '¥', 'usd', 'eur', 'gbp', 'sgd', 'rm', 'myr']:
+        s = s.replace(symbol, '')
+
+    # Remove commas from numbers (but only if the result looks numeric)
+    stripped_commas = s.replace(',', '')
+    try:
+        float(stripped_commas)
+        s = stripped_commas
+    except ValueError:
+        pass
+
+    # Normalize numeric strings: remove trailing .0, .00
+    try:
+        num = float(s)
+        if num == int(num):
+            s = str(int(num))
+        else:
+            s = str(num)
+    except ValueError:
+        pass
+
+    # Try to normalize common date formats to YYYY-MM-DD
+    s = _try_normalize_date(s)
+
+    # Strip trailing punctuation (periods, colons) unless it's meaningful
+    s = s.strip().rstrip('.:;,')
+
+    return s.strip()
+
+
+def _try_normalize_date(s: str) -> str:
+    """Attempt to parse and normalize a date string to YYYY-MM-DD."""
+    import re
+    from datetime import datetime
+
+    # Common date patterns
+    date_formats = [
+        '%Y-%m-%d',          # 2024-01-15
+        '%m/%d/%Y',          # 01/15/2024
+        '%d/%m/%Y',          # 15/01/2024
+        '%B %d, %Y',         # January 15, 2024
+        '%b %d, %Y',         # Jan 15, 2024
+        '%d %B %Y',          # 15 January 2024
+        '%d %b %Y',          # 15 Jan 2024
+        '%m-%d-%Y',          # 01-15-2024
+        '%Y/%m/%d',          # 2024/01/15
+        '%d.%m.%Y',          # 15.01.2024
+    ]
+
+    for fmt in date_formats:
+        try:
+            dt = datetime.strptime(s.strip(), fmt)
+            return dt.strftime('%Y-%m-%d')
+        except ValueError:
+            continue
+
+    return s
 
 
 class ExtractionComparator:
@@ -132,13 +214,8 @@ class ExtractionComparator:
     def __init__(self, lm: dspy.LM | None = None):
         """Initialize comparator."""
         if lm is None:
-            self.lm = dspy.LM(
-                model=f"azure/{AZURE_OPENAI_CHAT_DEPLOYMENT_NAME}",
-                api_base=AZURE_OPENAI_ENDPOINT,
-                api_version=AZURE_OPENAI_API_VERSION,
-                api_key=AZURE_OPENAI_KEY,
-                temperature=0.0,
-            )
+            from idp_workflow.tools.llm_factory import create_dspy_lm
+            self.lm = create_dspy_lm()
         else:
             self.lm = lm
 

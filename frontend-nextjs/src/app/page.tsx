@@ -93,7 +93,9 @@ export default function Page() {
           </div>
         ) : (
           /* Execution Page - Two-column layout */
-          <div className="flex gap-3 h-full">
+          <div className="flex flex-col gap-3 h-full">
+            <HITLPendingBanner />
+            <div className="flex gap-3 flex-1 min-h-0">
             {/* Center: Workflow Diagram */}
             <div className="flex-1 min-w-0 flex flex-col">
               <div className="rounded-lg border border-dark-700 bg-dark-800 flex-1 flex flex-col overflow-hidden shadow-lg">
@@ -116,6 +118,7 @@ export default function Page() {
             <div className="w-[420px] flex-shrink-0">
               <DetailPanel />
             </div>
+            </div>
           </div>
         )}
       </main>
@@ -125,6 +128,39 @@ export default function Page() {
 
       {/* HITL Modal */}
       <HITLReviewPanel />
+    </div>
+  );
+}
+
+function HITLPendingBanner() {
+  const hitlWaiting = useWorkflowStore((state) => state.hitlWaiting);
+  const hitlStatus = useWorkflowStore((state) => state.hitlStatus);
+  const showHITLModal = useUIStore((state) => state.showHITLModal);
+  const setShowHITLModal = useUIStore((state) => state.setShowHITLModal);
+
+  // Show banner when HITL is waiting but modal is not showing
+  if (!hitlWaiting || hitlStatus !== 'waiting' || showHITLModal) {
+    return null;
+  }
+
+  return (
+    <div className="flex-shrink-0 rounded-lg bg-amber-500/10 border border-amber-500/30 px-4 py-3 flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <span className="text-xl">⏳</span>
+        <div>
+          <p className="text-sm font-medium text-amber-300">Human Review Pending</p>
+          <p className="text-xs text-dark-400">
+            {hitlWaiting.comparisonSummary.differingFields} conflicts to resolve •
+            Workflow is waiting for your decision
+          </p>
+        </div>
+      </div>
+      <button
+        onClick={() => setShowHITLModal(true)}
+        className="px-4 py-2 rounded-lg text-sm font-medium bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 transition-colors"
+      >
+        Resume Review →
+      </button>
     </div>
   );
 }

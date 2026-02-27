@@ -18,21 +18,23 @@ def register_signalr_activity(app, hub_name: str, connection_setting: str):
         connection_string_setting=connection_setting,
     )
     def notify_user(payload: dict, signalRMessages) -> dict:
-        """Send SignalR notification to a workflow group.
+        """Send SignalR notification to a specific user.
 
         Payload:
         {
-            "instance_id": str,   # Workflow instance (used to build group name)
+            "user_id": str,       # Target user (from x-user-id header)
+            "instance_id": str,   # Workflow instance for context
             "event": str,         # Event type (e.g. stepStarted, stepCompleted)
             "data": dict          # Event data
         }
         """
+        user_id = payload.get("user_id", "")
         instance_id = payload.get("instance_id", "")
         event = payload.get("event", "unknown")
         data = payload.get("data", {})
 
         message = {
-            "groupName": f"workflow-{instance_id}",
+            "userId": user_id,
             "target": event,
             "arguments": [{
                 "event": event,
@@ -42,9 +44,9 @@ def register_signalr_activity(app, hub_name: str, connection_setting: str):
             }],
         }
 
-        signalRMessages.set(json.dumps(message))
-        logger.info(f"[{instance_id}] SignalR: {event}")
+        signalRMessages.set(json.dumps([message]))
+        logger.info(f"[{instance_id}] SignalR: {event} -> user {user_id}")
 
-        return {"sent": True, "event": event}
+        return {"sent": True, "event": event, "user_id": user_id}
 
     return notify_user

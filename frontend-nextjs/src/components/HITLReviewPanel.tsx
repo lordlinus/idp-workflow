@@ -180,7 +180,8 @@ export function HITLReviewPanel() {
             <div>
               <h2 className="text-2xl font-bold text-dark-50">Human Review Required</h2>
               <p className="text-sm text-dark-400 mt-1">
-                Review conflicts and select the correct values for each field
+                Review conflicts and select the correct values for each field.
+                You can dismiss and come back — the workflow will wait.
               </p>
             </div>
             <div className="text-right">
@@ -384,21 +385,30 @@ export function HITLReviewPanel() {
         </div>
 
         {/* Actions */}
-        <div className="border-t border-dark-700 bg-dark-900 px-8 py-6 flex justify-end gap-4">
+        <div className="border-t border-dark-700 bg-dark-900 px-8 py-6 flex items-center justify-between">
           <button
-            onClick={handleReject}
+            onClick={() => setShowModal(false)}
             disabled={isSubmitting}
-            className="btn-danger"
+            className="px-4 py-2 rounded-lg text-sm font-medium text-dark-300 bg-dark-700 border border-dark-600 hover:bg-dark-600 hover:text-dark-100 transition-colors"
           >
-            {isSubmitting ? 'Submitting...' : 'Reject & Request Changes'}
+            ← Review Later
           </button>
-          <button
-            onClick={handleApprove}
-            disabled={isSubmitting}
-            className="btn-success"
-          >
-            {isSubmitting ? 'Submitting...' : 'Approve & Continue'}
-          </button>
+          <div className="flex gap-4">
+            <button
+              onClick={handleReject}
+              disabled={isSubmitting}
+              className="btn-danger"
+            >
+              {isSubmitting ? 'Submitting...' : 'Reject & Request Changes'}
+            </button>
+            <button
+              onClick={handleApprove}
+              disabled={isSubmitting}
+              className="btn-success"
+            >
+              {isSubmitting ? 'Submitting...' : 'Approve & Continue'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
