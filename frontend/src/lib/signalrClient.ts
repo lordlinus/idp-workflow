@@ -91,6 +91,11 @@ class SignalRClient {
       });
       useWorkflowStore.getState().setCurrentStep(data.stepNumber);
       useEventsStore.getState().addEvent('stepStarted', data, timestamp);
+
+      // Auto-select reasoning step so the detail panel shows the live stream
+      if (data.stepName === 'step_06_reasoning_agent') {
+        useWorkflowStore.getState().selectStep('step_06_reasoning_agent');
+      }
     });
 
     // Step Completed
