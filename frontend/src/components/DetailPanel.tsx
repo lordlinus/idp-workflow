@@ -3,7 +3,8 @@ import ReactMarkdown from 'react-markdown';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useReasoningStore } from '@/store/reasoningStore';
 import { formatTimestamp, formatDuration } from '@/lib/utils';
-import { StepName, TOTAL_STEPS } from '@/types';
+import { STEP_INFO, TOTAL_STEPS } from '@/lib/stepConfig';
+import { StepName } from '@/types';
 import { apiClient } from '@/lib/apiClient';
 import clsx from 'clsx';
 
@@ -39,49 +40,13 @@ function ValueDisplay({ value }: { value: unknown }) {
   return <span className="break-words">{str}</span>;
 }
 
-const STEP_INFO: Record<string, { displayName: string; description: string; icon: string }> = {
-  step_01_pdf_extraction: {
-    displayName: 'PDF Extractor',
-    description: 'Extracts text, tables, and structure from uploaded PDF documents',
-    icon: '📄',
-  },
-  step_02_classification: {
-    displayName: 'Document Classifier',
-    description: 'Classifies document type and identifies the processing domain',
-    icon: '🏷️',
-  },
-  step_03_01_azure_extraction: {
-    displayName: 'Azure Document Intelligence',
-    description: 'Extracts structured fields using Azure AI Document Intelligence',
-    icon: '☁️',
-  },
-  step_03_02_dspy_extraction: {
-    displayName: 'LLM Extractor',
-    description: 'Extracts fields using DSPy with configurable LLM (Azure OpenAI, Qwen, DeepSeek)',
-    icon: '🤖',
-  },
-  step_04_comparison: {
-    displayName: 'Field Comparator',
-    description: 'Compares extraction results from Azure and DSPy, identifies conflicts',
-    icon: '⚖️',
-  },
-  step_05_human_review: {
-    displayName: 'Human Review',
-    description: 'Human-in-the-loop validation and conflict resolution',
-    icon: '👤',
-  },
-  step_06_reasoning_agent: {
-    displayName: 'Reasoning Agent',
-    description: 'AI agent performs final validation and generates confidence scores',
-    icon: '🧠',
-  },
-};
-
 // Reasoning stream sub-component
 function ReasoningStream() {
   const chunks = useReasoningStore((state) => state.chunks);
   const isComplete = useReasoningStore((state) => state.isComplete);
   const containerRef = React.useRef<HTMLDivElement>(null);
+
+  console.log('[ReasoningStream] render — chunks:', chunks.length, 'isComplete:', isComplete);
 
   // Smart auto-scroll: only scroll if user is near the bottom
   React.useEffect(() => {

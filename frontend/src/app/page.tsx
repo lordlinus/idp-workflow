@@ -10,7 +10,7 @@ import { HITLReviewPanel } from '@/components/HITLReviewPanel';
 import { DetailPanel } from '@/components/DetailPanel';
 import clsx from 'clsx';
 
-import { TOTAL_STEPS } from '@/types';
+import { TOTAL_STEPS } from '@/lib/stepConfig';
 import { WorkflowDiagram } from '@/components/WorkflowDiagram';
 
 export default function Page() {

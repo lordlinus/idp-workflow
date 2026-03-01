@@ -3,6 +3,7 @@
 import React from 'react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { formatDuration } from '@/lib/utils';
+import { PIPELINE_ROWS } from '@/lib/stepConfig';
 import { StepName, StepStatus } from '@/types';
 import clsx from 'clsx';
 
@@ -16,19 +17,6 @@ interface StepDef {
   number: number;
   icon: string;
 }
-
-/** Each column is rendered left-to-right. Columns with >1 step stack vertically (parallel). */
-const PIPELINE_ROWS: StepDef[][] = [
-  [{ name: 'step_01_pdf_extraction', displayName: 'PDF Extractor', number: 1, icon: '📄' }],
-  [{ name: 'step_02_classification', displayName: 'Classifier', number: 2, icon: '🏷️' }],
-  [
-    { name: 'step_03_01_azure_extraction', displayName: 'Azure CU', number: 3, icon: '☁️' },
-    { name: 'step_03_02_dspy_extraction', displayName: 'LLM', number: 3, icon: '🤖' },
-  ],
-  [{ name: 'step_04_comparison', displayName: 'Comparator', number: 4, icon: '⚖️' }],
-  [{ name: 'step_05_human_review', displayName: 'Human Review', number: 5, icon: '👤' }],
-  [{ name: 'step_06_reasoning_agent', displayName: 'Reasoner', number: 6, icon: '🧠' }],
-];
 
 /* ------------------------------------------------------------------ */
 /*  Status styling config                                              */
@@ -126,6 +114,7 @@ function StatusDot({ status }: { status: StepStatus | 'pending' }) {
 function StepNode({ step, onClick }: { step: StepDef; onClick: (name: StepName) => void }) {
   const stepData = useWorkflowStore((state) => state.steps.get(step.name));
   const selectedStep = useWorkflowStore((state) => state.selectedStep);
+  const progressData = useWorkflowStore((state) => state.stepProgress.get(step.name));
   const status = (stepData?.status || 'pending') as StepStatus | 'pending';
   const duration = stepData?.durationMs;
   const isSelected = selectedStep === step.name;
@@ -175,6 +164,21 @@ function StepNode({ step, onClick }: { step: StepDef; onClick: (name: StepName) 
           Processing...
         </span>
       ) : null}
+
+      {/* Step progress message (live update from activity) */}
+      {status === 'running' && progressData && (
+        <div className="mt-1 w-full text-left">
+          <p className="text-[10px] text-blue-300/80 truncate leading-tight">{progressData.message}</p>
+          {progressData.progress != null && (
+            <div className="mt-0.5 w-full h-1 rounded-full bg-dark-700/50 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-blue-400/70 transition-all duration-300"
+                style={{ width: `${Math.min(progressData.progress, 100)}%` }}
+              />
+            </div>
+          )}
+        </div>
+      )}
     </button>
   );
 }

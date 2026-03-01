@@ -9,6 +9,7 @@ import {
   StepStartedData,
   StepCompletedData,
   StepFailedData,
+  StepProgressData,
   HITLWaitingData,
   HITLApprovedData,
   HITLRejectedData,
@@ -17,6 +18,7 @@ import {
   StepName,
   StepStatus,
 } from '@/types';
+import { STEP_DISPLAY_NAMES, STEP_NUM_TO_NAMES } from '@/lib/stepConfig';
 
 class SignalRClient {
   private connection: signalR.HubConnection | null = null;
@@ -127,6 +129,14 @@ class SignalRClient {
       });
     });
 
+    // Step Progress (intermediate updates from within activities)
+    this.connection.on('stepProgress', (arg: { data: StepProgressData; timestamp: string; instanceId: string }) => {
+      console.log('stepProgress received:', arg);
+      const { data, timestamp } = arg;
+      useWorkflowStore.getState().setStepProgress(data);
+      useEventsStore.getState().addEvent('stepProgress', data, timestamp);
+    });
+
     // HITL Waiting
     this.connection.on('hitlWaiting', (arg: { data: HITLWaitingData; timestamp: string; instanceId: string }) => {
       console.log('hitlWaiting received:', arg);
@@ -220,27 +230,7 @@ class SignalRClient {
 
 export const signalRClient = new SignalRClient();
 
-// Step display names for status sync
-const STEP_DISPLAY_NAMES: Record<string, string> = {
-  step_01_pdf_extraction: 'PDF Extractor',
-  step_02_classification: 'Document Classifier',
-  step_03_01_azure_extraction: 'Azure Document Intelligence',
-  step_03_02_dspy_extraction: 'DSPy LLM Extractor',
-  step_04_comparison: 'Field Comparator',
-  step_05_human_review: 'Human Review',
-  step_06_reasoning_agent: 'Reasoning Agent',
-};
 
-// Ordered steps for inferring completed steps from custom status
-const STEP_ORDER: StepName[] = [
-  'step_01_pdf_extraction',
-  'step_02_classification',
-  'step_03_01_azure_extraction',
-  'step_03_02_dspy_extraction',
-  'step_04_comparison',
-  'step_05_human_review',
-  'step_06_reasoning_agent',
-];
 
 /**
  * Sync workflow state from the backend status endpoint.
@@ -259,18 +249,8 @@ async function syncWorkflowStatus(instanceId: string): Promise<void> {
     // Mark steps before the current one as completed (they must have finished)
     const store = useWorkflowStore.getState();
 
-    // Map step numbers to step names (accounting for parallel steps 3a/3b)
-    const stepNumToNames: Record<number, StepName[]> = {
-      1: ['step_01_pdf_extraction'],
-      2: ['step_02_classification'],
-      3: ['step_03_01_azure_extraction', 'step_03_02_dspy_extraction'],
-      4: ['step_04_comparison'],
-      5: ['step_05_human_review'],
-      6: ['step_06_reasoning_agent'],
-    };
-
     for (let n = 1; n < currentStepNum; n++) {
-      const names = stepNumToNames[n] || [];
+      const names = STEP_NUM_TO_NAMES[n] || [];
       for (const name of names) {
         const existing = store.steps.get(name);
         if (!existing || existing.status === 'pending') {
@@ -283,7 +263,7 @@ async function syncWorkflowStatus(instanceId: string): Promise<void> {
     }
 
     // Mark current step as running if not already tracked
-    const currentNames = stepNumToNames[currentStepNum] || [];
+    const currentNames = STEP_NUM_TO_NAMES[currentStepNum] || [];
     for (const name of currentNames) {
       const existing = store.steps.get(name);
       if (!existing || existing.status === 'pending') {

@@ -26,16 +26,6 @@ export const DOMAIN_CONFIG: Record<
   },
 };
 
-export const STEP_DISPLAY_NAMES: Record<string, string> = {
-  step_01_pdf_extraction: 'PDF Extraction',
-  step_02_classification: 'Classification',
-  step_03_01_azure_extraction: 'Azure Extraction',
-  step_03_02_dspy_extraction: 'DSPy Extraction',
-  step_04_comparison: 'Comparison',
-  step_05_human_review: 'Human Review',
-  step_06_reasoning_agent: 'Reasoning',
-};
-
 /**
  * Format duration in milliseconds to human-readable string
  */
