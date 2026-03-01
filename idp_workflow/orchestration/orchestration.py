@@ -62,7 +62,11 @@ def _generate_output_preview(step_output: dict, step_name: str) -> str:
     if step_name == "step_01_pdf_extraction":
         return f"{step_output.get('total_pages', 0)} pages, {step_output.get('characters', 0):,} characters"
     elif step_name == "step_02_classification":
-        return f"Category: {step_output.get('primary_category', 'Unknown')} ({step_output.get('primary_confidence', 0):.1%})"
+        cls = step_output.get('classifications', {})
+        primary_cat = step_output.get('primary_category', cls.get('primary_category', 'Unknown'))
+        primary_conf = cls.get('primary_confidence', step_output.get('primary_confidence', 0))
+        pages_classified = cls.get('pages_classified', 0)
+        return f"Category: {primary_cat} ({primary_conf:.1%}) — {pages_classified} pages classified"
     elif step_name == "step_03_01_azure_extraction":
         return f"Azure: {step_output.get('azure_pages_processed', 0)} pages processed"
     elif step_name == "step_03_02_dspy_extraction":

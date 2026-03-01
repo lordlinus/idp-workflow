@@ -72,41 +72,74 @@ function PDFExtractionOutput({ output }: { output: Record<string, unknown> }) {
 /* ------------------------------------------------------------------ */
 
 function ClassificationOutput({ output }: { output: Record<string, unknown> }) {
-  const classifications = output.classifications as Record<string, unknown> | undefined;
-  const classificationsList = (classifications as unknown as Array<Record<string, unknown>>) 
-    ?? (output.classifications as Array<Record<string, unknown>> | undefined) 
+  // The activity returns: { classifications: { pages_classified, classifications: [...], primary_category, primary_confidence }, classification_result: { categories: [...] }, primary_category, processing_time_ms }
+  const classificationsObj = output.classifications as Record<string, unknown> | undefined;
+  const primaryCategory = String(output.primary_category ?? classificationsObj?.primary_category ?? 'Unknown');
+  const primaryConfidence = Number(classificationsObj?.primary_confidence ?? output.primary_confidence ?? 0);
+  const pagesClassified = Number(classificationsObj?.pages_classified ?? 0);
+
+  // Per-page classifications — nested inside classifications.classifications
+  const classificationsList: Array<Record<string, unknown>> =
+    (Array.isArray(classificationsObj?.classifications)
+      ? classificationsObj!.classifications as Array<Record<string, unknown>>
+      : null)
+    ?? (Array.isArray(output.classifications) ? output.classifications as Array<Record<string, unknown>> : [])
     ?? [];
+
   return (
     <div className="space-y-3">
-      <div className="rounded-lg bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 p-4">
-        <p className="text-xs text-dark-400 mb-1">Primary Category</p>
-        <p className="text-lg font-bold text-dark-50">{String(output.primary_category ?? 'Unknown')}</p>
-        {output.primary_confidence != null && (
+      {/* Summary row */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-lg bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 p-4">
+          <p className="text-xs text-dark-400 mb-1">Primary Category</p>
+          <p className="text-lg font-bold text-dark-50">{primaryCategory}</p>
           <p className="text-sm text-dark-300 mt-1">
-            Confidence: <span className="text-green-400 font-medium">{(Number(output.primary_confidence) * 100).toFixed(0)}%</span>
+            Confidence: <span className={clsx('font-medium', getConfidenceColor(primaryConfidence, { medium: 0.5 }))}>
+              {(primaryConfidence * 100).toFixed(0)}%
+            </span>
           </p>
-        )}
+        </div>
+        <div className="rounded-lg bg-dark-900 border border-dark-700 p-4 flex flex-col items-center justify-center">
+          <p className="text-xl font-bold text-purple-400">{pagesClassified}</p>
+          <p className="text-xs text-dark-400">Pages Classified</p>
+        </div>
       </div>
-      {Array.isArray(classificationsList) && classificationsList.length > 0 && (
+
+      {/* Per-page classification table */}
+      {classificationsList.length > 0 && (
         <div className="rounded-lg bg-dark-900 border border-dark-700 p-3">
-          <p className="text-xs font-medium text-dark-400 uppercase tracking-wider mb-3">Page Classifications</p>
+          <p className="text-xs font-medium text-dark-400 uppercase tracking-wider mb-3">Page-by-Page Classifications</p>
           <div className="space-y-2">
-            {classificationsList.map((cls, i) => (
-              <div key={i} className="flex items-center justify-between rounded bg-dark-800 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs bg-dark-700 text-dark-300 px-1.5 py-0.5 rounded">
-                    p{String(cls.page_number ?? cls.page ?? i + 1)}
-                  </span>
-                  <span className="text-sm text-dark-200">{String(cls.category ?? '—')}</span>
+            {classificationsList.map((cls, i) => {
+              const detectedFields = (cls.detected_fields as string[] | undefined) ?? [];
+              return (
+                <div key={i} className="rounded bg-dark-800 px-3 py-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs bg-dark-700 text-dark-300 px-1.5 py-0.5 rounded font-mono">
+                        p{String(cls.page_number ?? cls.page ?? i + 1)}
+                      </span>
+                      <span className="text-sm text-dark-200 font-medium">{String(cls.category ?? '—')}</span>
+                    </div>
+                    <span className={clsx(
+                      'text-xs font-medium',
+                      getConfidenceColor(Number(cls.confidence ?? 0), { medium: 0.5 })
+                    )}>
+                      {(Number(cls.confidence ?? 0) * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  {detectedFields.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {detectedFields.map((field, fi) => (
+                        <span key={fi} className="text-[10px] bg-dark-700 text-dark-400 px-1.5 py-0.5 rounded">
+                          {field}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <span className={clsx(
-                  'text-xs font-medium',
-                  getConfidenceColor(Number(cls.confidence ?? 0), { medium: 0.5 })
-                )}>
-                  {(Number(cls.confidence ?? 0) * 100).toFixed(0)}%
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
