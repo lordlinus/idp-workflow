@@ -1,11 +1,27 @@
 """Activity functions for the IDP workflow."""
 
 import logging
-import time
 
+from idp_workflow.activities.utils import ActivityContext
+from idp_workflow.errors import (
+    ClassificationError,
+    ComparisonError,
+    ExtractionError,
+    ReasoningError,
+)
 from idp_workflow.models import PDFContent
 
 logger = logging.getLogger(__name__)
+
+
+def _create_signalr_client():
+    """Try to create a SignalR REST client; return None on failure."""
+    try:
+        from idp_workflow.utils.signalr_rest_client import SignalRRestClient
+        return SignalRRestClient()
+    except Exception as exc:
+        logger.warning(f"Could not init SignalR REST client: {exc}")
+        return None
 
 
 def register_activities(app):
@@ -14,6 +30,7 @@ def register_activities(app):
     @app.activity_trigger(input_name="extract_request")
     async def activity_step_01_pdf_extraction(extract_request: dict) -> dict:
         """Extract PDF to markdown."""
+        ctx = ActivityContext(extract_request, "PDF extraction")
         try:
             from idp_workflow.config import (
                 AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT,
@@ -23,14 +40,11 @@ def register_activities(app):
             from idp_workflow.utils.helpers import resolve_pdf_path
 
             pdf_path = extract_request.get("pdf_path")
-            request_id = extract_request.get("request_id")
 
             # Resolve blob paths to local temp files
             pdf_path = resolve_pdf_path(pdf_path)
 
-            logger.info(f"[{request_id}] Starting PDF extraction: {pdf_path}")
-
-            start_time = time.time()
+            ctx.log_start(str(pdf_path))
 
             extractor = PDFMarkdownExtractor(
                 endpoint=AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT,
@@ -39,14 +53,12 @@ def register_activities(app):
 
             pdf_content, step_output = await extractor.extract(pdf_path)  # type: ignore
 
-            processing_time_ms = round((time.time() - start_time) * 1000)
-
-            logger.info(
-                f"[{request_id}] PDF extraction complete: {step_output.total_pages} pages in {processing_time_ms}ms"
+            ctx.log_complete(
+                f"{step_output.total_pages} pages in {ctx.elapsed_ms}ms"
             )
 
             step_output_dict = step_output.model_dump()
-            step_output_dict["processing_time_ms"] = processing_time_ms
+            step_output_dict["processing_time_ms"] = ctx.elapsed_ms
 
             return {
                 "pdf_content": {
@@ -60,29 +72,49 @@ def register_activities(app):
                 "step_output": step_output_dict,
             }
         except Exception as e:
-            logger.error(
-                f"[{extract_request.get('request_id')}] PDF extraction failed: {e}"
-            )
-            raise
+            ctx.log_error(e)
+            raise ExtractionError(
+                str(e),
+                request_id=ctx.request_id,
+                step_name="step_01_pdf_extraction",
+            ) from e
 
     @app.activity_trigger(input_name="classify_request")
     async def activity_step_02_classification(classify_request: dict) -> dict:
         """Classify document pages."""
+        ctx = ActivityContext(classify_request, "Classification")
         try:
             from idp_workflow.config import DOMAINS_DIR
+            from idp_workflow.constants import STEP2_CLASSIFICATION
             from idp_workflow.steps.step_02_classifier import (
                 DocumentClassificationExecutor,
             )
             from idp_workflow.tools.llm_factory import create_dspy_lm
 
-            request_id = classify_request.get("request_id")
+            user_id = classify_request.get("user_id", "")
+            instance_id = classify_request.get("instance_id", "")
             max_pages = classify_request.get("max_pages", 50)
             options = classify_request.get("options", {})
             custom_categories = classify_request.get("custom_classification_categories")
 
-            logger.info(f"[{request_id}] Starting document classification")
+            ctx.log_start()
 
-            start_time = time.time()
+            # Build streaming progress callback
+            on_progress = None
+            if user_id and instance_id:
+                signalr = _create_signalr_client()
+                if signalr:
+                    def _on_cls_progress(page_idx: int, total: int, category: str, confidence: float) -> None:
+                        signalr.send_step_progress(
+                            user_id=user_id,
+                            instance_id=instance_id,
+                            step_name=STEP2_CLASSIFICATION,
+                            message=f"Page {page_idx + 1}/{total}: {category}",
+                            progress=round((page_idx + 1) / total * 100),
+                            detail=f"{confidence:.0%} confidence",
+                            sub_step=f"page_{page_idx + 1}",
+                        )
+                    on_progress = _on_cls_progress
 
             pdf_content_dict = classify_request.get("pdf_content", {})
             pdf_content = PDFContent(
@@ -99,6 +131,7 @@ def register_activities(app):
                 classifier = DocumentClassificationExecutor(
                     categories=custom_categories,
                     lm=lm,
+                    on_progress=on_progress,
                 )
             else:
                 categories_path = DOMAINS_DIR / classify_request.get(
@@ -108,17 +141,15 @@ def register_activities(app):
                 classifier = DocumentClassificationExecutor(
                     categories_path=categories_path,
                     lm=lm,
+                    on_progress=on_progress,
                 )
 
             classification_result, step_output = await classifier.classify(
                 pdf_content, max_pages=max_pages
             )
 
-            processing_time_ms = round((time.time() - start_time) * 1000)
-
-            logger.info(
-                f"[{request_id}] Classification complete: "
-                f"{step_output.pages_classified} pages classified in {processing_time_ms}ms"
+            ctx.log_complete(
+                f"{step_output.pages_classified} pages classified in {ctx.elapsed_ms}ms"
             )
 
             return {
@@ -141,22 +172,27 @@ def register_activities(app):
                 },
                 "classifications": step_output.model_dump(),
                 "primary_category": step_output.primary_category,
-                "processing_time_ms": processing_time_ms,
+                "processing_time_ms": ctx.elapsed_ms,
             }
         except Exception as e:
-            logger.error(
-                f"[{classify_request.get('request_id')}] Classification failed: {e}"
-            )
-            raise
+            ctx.log_error(e)
+            raise ClassificationError(
+                str(e),
+                request_id=ctx.request_id,
+                step_name="step_02_classification",
+            ) from e
 
     @app.activity_trigger(input_name="extract_request")
     async def activity_step_03_01_azure_extraction(extract_request: dict) -> dict:
         """Extract data using Azure Content Understanding."""
+        ctx = ActivityContext(extract_request, "Azure CU extraction")
         try:
+            from idp_workflow.constants import STEP3_AZURE_EXTRACTION
             from idp_workflow.steps.step_03_extractors import AzureExtractor
             from idp_workflow.utils.helpers import resolve_pdf_path
 
-            request_id = extract_request.get("request_id")
+            user_id = extract_request.get("user_id", "")
+            instance_id = extract_request.get("instance_id", "")
             domain_id = extract_request.get("domain_id", "insurance_claims")
             max_pages = extract_request.get("max_pages", 50)
             pdf_path = extract_request.get("pdf_path")
@@ -168,20 +204,33 @@ def register_activities(app):
             # Resolve blob paths to local temp files
             pdf_path = resolve_pdf_path(pdf_path)
 
-            logger.info(
-                f"[{request_id}] Starting Azure CU extraction from PDF: {pdf_path}"
-            )
+            ctx.log_start(f"from PDF: {pdf_path}")
+
+            # Build streaming progress callback
+            on_progress = None
+            if user_id and instance_id:
+                signalr = _create_signalr_client()
+                if signalr:
+                    def _on_azure_progress(message: str, detail: str | None = None) -> None:
+                        signalr.send_step_progress(
+                            user_id=user_id,
+                            instance_id=instance_id,
+                            step_name=STEP3_AZURE_EXTRACTION,
+                            message=message,
+                            detail=detail,
+                        )
+                    on_progress = _on_azure_progress
 
             extractor = AzureExtractor(
                 domain_id=domain_id,
                 schema_dict=custom_schema,
+                on_progress=on_progress,
             )
             extraction_result, step_output = await extractor.extract(
                 pdf_path=pdf_path, max_pages=max_pages
             )
 
-            logger.info(
-                f"[{request_id}] Azure extraction complete: "
+            ctx.log_complete(
                 f"{extraction_result.total_pages_processed} pages"
             )
 
@@ -190,19 +239,24 @@ def register_activities(app):
                 "step_output": step_output,
             }
         except Exception as e:
-            logger.error(
-                f"[{extract_request.get('request_id')}] Azure extraction failed: {e}"
-            )
-            raise
+            ctx.log_error(e)
+            raise ExtractionError(
+                str(e),
+                request_id=ctx.request_id,
+                step_name="step_03_01_azure_extraction",
+            ) from e
 
     @app.activity_trigger(input_name="extract_request")
     async def activity_step_03_02_dspy_extraction(extract_request: dict) -> dict:
         """Extract data using DSPy."""
+        ctx = ActivityContext(extract_request, "DSPy extraction")
         try:
+            from idp_workflow.constants import STEP3_DSPY_EXTRACTION
             from idp_workflow.steps.step_03_extractors import DSPyExtractor
             from idp_workflow.tools.llm_factory import create_dspy_lm
 
-            request_id = extract_request.get("request_id")
+            user_id = extract_request.get("user_id", "")
+            instance_id = extract_request.get("instance_id", "")
             domain_id = extract_request.get("domain_id", "insurance_claims")
             full_text = extract_request.get("full_text", "")
             total_pages = extract_request.get("total_pages", 0)
@@ -212,9 +266,22 @@ def register_activities(app):
             if not full_text:
                 raise ValueError("full_text is required for DSPy extraction")
 
-            logger.info(
-                f"[{request_id}] Starting DSPy extraction from {len(full_text)} chars"
-            )
+            ctx.log_start(f"from {len(full_text)} chars")
+
+            # Build streaming progress callback
+            on_progress = None
+            if user_id and instance_id:
+                signalr = _create_signalr_client()
+                if signalr:
+                    def _on_dspy_progress(message: str, detail: str | None = None) -> None:
+                        signalr.send_step_progress(
+                            user_id=user_id,
+                            instance_id=instance_id,
+                            step_name=STEP3_DSPY_EXTRACTION,
+                            message=message,
+                            detail=detail,
+                        )
+                    on_progress = _on_dspy_progress
 
             lm = create_dspy_lm(options)
 
@@ -222,13 +289,13 @@ def register_activities(app):
                 domain_id=domain_id,
                 lm=lm,
                 schema_dict=custom_schema,
+                on_progress=on_progress,
             )
             extraction_result, step_output = await extractor.extract(
                 full_text=full_text, total_pages=total_pages
             )
 
-            logger.info(
-                f"[{request_id}] DSPy extraction complete: "
+            ctx.log_complete(
                 f"{extraction_result.total_pages_processed} pages"
             )
 
@@ -237,26 +304,27 @@ def register_activities(app):
                 "step_output": step_output,
             }
         except Exception as e:
-            logger.error(
-                f"[{extract_request.get('request_id')}] DSPy extraction failed: {e}"
-            )
-            raise
+            ctx.log_error(e)
+            raise ExtractionError(
+                str(e),
+                request_id=ctx.request_id,
+                step_name="step_03_02_dspy_extraction",
+            ) from e
 
     @app.activity_trigger(input_name="compare_request")
     async def activity_step_04_comparison(compare_request: dict) -> dict:
         """Compare Azure and DSPy extraction results."""
+        ctx = ActivityContext(compare_request, "Comparison")
         try:
             from idp_workflow.steps.step_04_comparator import ExtractionComparator
 
-            request_id = compare_request.get("request_id")
             azure_data = compare_request.get("azure_data", {})
             dspy_data = compare_request.get("dspy_data", {})
             document_context = compare_request.get(
                 "document_context", "Insurance Claim"
             )
 
-            logger.info(
-                f"[{request_id}] Starting comparison: "
+            ctx.log_start(
                 f"Azure has {len(azure_data)} fields, DSPy has {len(dspy_data)} fields"
             )
 
@@ -267,8 +335,7 @@ def register_activities(app):
                 document_context=document_context,
             )
 
-            logger.info(
-                f"[{request_id}] Comparison complete: "
+            ctx.log_complete(
                 f"{comparison_result.matching_fields}/{comparison_result.total_fields} matching "
                 f"({comparison_result.match_percentage}%), "
                 f"{len(comparison_result.fields_needing_review)} need review"
@@ -289,19 +356,23 @@ def register_activities(app):
                 "step_output": step_output,
             }
         except Exception as e:
-            logger.error(
-                f"[{compare_request.get('request_id')}] Comparison failed: {e}"
-            )
-            raise
+            ctx.log_error(e)
+            raise ComparisonError(
+                str(e),
+                request_id=ctx.request_id,
+                step_name="step_04_comparison",
+            ) from e
 
     @app.activity_trigger(input_name="reasoning_request")
     async def activity_step_06_reasoning_agent(reasoning_request: dict) -> dict:
         """Generate reasoning summary using AI Foundry Agent with tools."""
+        ctx = ActivityContext(reasoning_request, "Agent reasoning")
         try:
             from idp_workflow.steps.step_06_reasoning_agent import AgentReasoningEngine
+            from idp_workflow.utils.signalr_rest_client import SignalRRestClient
 
-            request_id = reasoning_request.get("request_id")
             instance_id = reasoning_request.get("instance_id")
+            user_id = reasoning_request.get("user_id", "")
             domain_id = reasoning_request.get("domain_id", "insurance_claims")
             document_type = reasoning_request.get("document_type", "Unknown")
             azure_data = reasoning_request.get("azure_data", {})
@@ -312,13 +383,46 @@ def register_activities(app):
             accepted_values = reasoning_request.get("accepted_values", {})
             default_source = reasoning_request.get("default_source", "comparison")
 
-            logger.info(
-                f"[{request_id}] Starting Agent-based reasoning with "
-                f"Azure: {len(azure_data)} fields, DSPy: {len(dspy_data)} fields, "
+            ctx.log_start(
+                f"with Azure: {len(azure_data)} fields, DSPy: {len(dspy_data)} fields, "
                 f"Human-accepted: {len(accepted_values)} fields"
             )
 
-            engine = AgentReasoningEngine(domain_id=domain_id, instance_id=instance_id)
+            # Build a real-time SignalR callback so chunks stream to the
+            # frontend while the activity is still running.
+            on_chunk = None
+            if user_id and instance_id:
+                try:
+                    signalr = SignalRRestClient()
+
+                    def _send_chunk(
+                        chunk_type: str, content: str, metadata: dict | None = None
+                    ) -> None:
+                        signalr.send_reasoning_chunk(
+                            user_id=user_id,
+                            instance_id=instance_id,
+                            chunk_type=chunk_type,
+                            content=content,
+                            chunk_index=(metadata or {}).get("chunkIndex", 0),
+                            metadata=metadata,
+                        )
+
+                    on_chunk = _send_chunk
+                    ctx.log(
+                        f"SignalR direct streaming enabled for user {user_id}"
+                    )
+                except Exception as exc:
+                    ctx.log(
+                        f"Could not init SignalR REST client, "
+                        f"falling back to non-streaming: {exc}",
+                        level="warning",
+                    )
+
+            engine = AgentReasoningEngine(
+                domain_id=domain_id,
+                instance_id=instance_id,
+                on_chunk=on_chunk,
+            )
             summary = await engine.generate_summary(
                 document_type=document_type,
                 azure_data=azure_data,
@@ -330,8 +434,7 @@ def register_activities(app):
                 default_source=default_source,
             )
 
-            logger.info(
-                f"[{request_id}] Agent reasoning complete: "
+            ctx.log_complete(
                 f"{summary.passed_validations}/{summary.total_validations} validations passed, "
                 f"confidence: {summary.confidence_score:.2f}"
             )
@@ -354,7 +457,9 @@ def register_activities(app):
                 "step_output": step_output,
             }
         except Exception as e:
-            logger.error(
-                f"[{reasoning_request.get('request_id')}] Agent reasoning failed: {e}"
-            )
-            raise
+            ctx.log_error(e)
+            raise ReasoningError(
+                str(e),
+                request_id=ctx.request_id,
+                step_name="step_06_reasoning_agent",
+            ) from e
