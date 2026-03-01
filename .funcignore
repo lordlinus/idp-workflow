@@ -34,4 +34,5 @@ infra/
 .github/
 azure.yaml
 README.md
+docs/
 __pycache__

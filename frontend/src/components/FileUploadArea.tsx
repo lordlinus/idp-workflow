@@ -3,6 +3,7 @@ import { useUploadPDF, useStartWorkflow, useDemoDocument, useValidateSchema } fr
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useUIStore } from '@/store/uiStore';
 import { useSignalR } from '@/lib/signalrClient';
+import { apiClient } from '@/lib/apiClient';
 import { DOMAIN_CONFIG } from '@/lib/utils';
 import { DomainId, LLMProvider, ExtractionSchema, ClassificationCategory, WorkflowOptions } from '@/types';
 import clsx from 'clsx';
@@ -212,7 +213,7 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
     }, 100);
   };
 
-  const startWorkflowWithBlob = async (blobPath: string, domainId: DomainId) => {
+  const startWorkflowWithBlob = async (blobPath: string, domainId: DomainId, fileName: string) => {
     try {
       setToast({ message: 'Starting workflow...', type: 'info' });
 
@@ -230,8 +231,11 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
         ...advancedOptions,
       });
 
-      // Initialize workflow store
-      initializeWorkflow(workflowResponse.instanceId, domainId, llmProvider, llmModel || undefined, advancedOptions.custom_extraction_schema);
+      // Build document viewer URL
+      const documentUrl = apiClient.getDocumentUrl(blobPath);
+
+      // Initialize workflow store with document info
+      initializeWorkflow(workflowResponse.instanceId, domainId, llmProvider, llmModel || undefined, advancedOptions.custom_extraction_schema, documentUrl, fileName);
 
       // Sync any missed state
       await signalR.syncStatus(workflowResponse.instanceId);
@@ -261,7 +265,7 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
       setToast({ message: 'Uploading PDF...', type: 'info' });
       const uploadedFile = await uploadPDF.mutateAsync(file);
 
-      await startWorkflowWithBlob(uploadedFile.blobPath, selectedDomain);
+      await startWorkflowWithBlob(uploadedFile.blobPath, selectedDomain, uploadedFile.fileName);
     } catch (error) {
       console.error('Error uploading file:', error);
       setToast({
@@ -276,7 +280,7 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
       setToast({ message: `Loading demo document for ${DOMAIN_CONFIG[selectedDomain].label}...`, type: 'info' });
       const demoResult = await demoDocument.mutateAsync(selectedDomain);
 
-      await startWorkflowWithBlob(demoResult.blobPath, selectedDomain);
+      await startWorkflowWithBlob(demoResult.blobPath, selectedDomain, demoResult.fileName);
     } catch (error) {
       console.error('Error using demo document:', error);
       setToast({

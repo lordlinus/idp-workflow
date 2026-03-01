@@ -28,6 +28,10 @@ interface WorkflowState {
   llmModel: string | null;
   customSchema: ExtractionSchema | null;
 
+  // Document being processed
+  documentUrl: string | null;
+  documentName: string | null;
+
   // UI state
   selectedStep: StepName | null;
 
@@ -40,7 +44,7 @@ interface WorkflowState {
   hitlFeedback: string | null;
 
   // Actions
-  initializeWorkflow: (instanceId: string, domain_id: DomainId, llmProvider?: string, llmModel?: string, customSchema?: ExtractionSchema | null) => void;
+  initializeWorkflow: (instanceId: string, domain_id: DomainId, llmProvider?: string, llmModel?: string, customSchema?: ExtractionSchema | null, documentUrl?: string, documentName?: string) => void;
   setStatus: (status: WorkflowState['status']) => void;
   updateStep: (stepName: StepName, updates: Partial<Step>) => void;
   setCurrentStep: (stepNumber: number) => void;
@@ -63,6 +67,8 @@ const initialState = {
   llmModel: null,
   customSchema: null,
   selectedStep: null,
+  documentUrl: null,
+  documentName: null,
   stepProgress: new Map<StepName, StepProgressData>(),
   hitlWaiting: null,
   hitlStatus: null,
@@ -73,7 +79,7 @@ export const useWorkflowStore = create<WorkflowState>()(
   immer((set) => ({
     ...initialState,
 
-    initializeWorkflow: (instanceId: string, domain_id: DomainId, llmProvider?: string, llmModel?: string, customSchema?: ExtractionSchema | null) => {
+    initializeWorkflow: (instanceId: string, domain_id: DomainId, llmProvider?: string, llmModel?: string, customSchema?: ExtractionSchema | null, documentUrl?: string, documentName?: string) => {
       set((state) => {
         state.instanceId = instanceId;
         state.domain_id = domain_id;
@@ -82,6 +88,8 @@ export const useWorkflowStore = create<WorkflowState>()(
         state.llmProvider = llmProvider || null;
         state.llmModel = llmModel || null;
         state.customSchema = customSchema || null;
+        state.documentUrl = documentUrl || null;
+        state.documentName = documentName || null;
       });
     },
 

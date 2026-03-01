@@ -135,6 +135,13 @@ class APIClient {
     const response = await this.client.get<LLMProvidersResponse>('/idp/llm-providers');
     return response.data;
   }
+
+  /**
+   * Build URL to serve a document PDF via the backend proxy.
+   */
+  getDocumentUrl(blobPath: string): string {
+    return `${API_BASE_URL}/idp/document?path=${encodeURIComponent(blobPath)}`;
+  }
 }
 
 export const apiClient = new APIClient();

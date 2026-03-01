@@ -306,6 +306,65 @@ def register_http_endpoints(app):
                 mimetype="application/json",
             )
 
+    @app.route(route="idp/document", methods=["GET"])
+    async def http_serve_document(req: func.HttpRequest) -> func.HttpResponse:
+        """Serve a PDF document from local filesystem or Azure Blob Storage.
+
+        Query params:
+            path: blob name (Azure) or local file path
+        """
+        try:
+            doc_path = req.params.get("path")
+            if not doc_path:
+                return func.HttpResponse(
+                    body=json.dumps({"error": "path query parameter is required"}),
+                    status_code=400,
+                    mimetype="application/json",
+                )
+
+            storage_account_name = os.environ.get("AZURE_STORAGE_ACCOUNT_NAME", "")
+            use_local = not storage_account_name
+
+            if use_local:
+                import pathlib
+
+                local_path = pathlib.Path(doc_path)
+                if not local_path.exists():
+                    return func.HttpResponse(
+                        body=json.dumps({"error": "Document not found"}),
+                        status_code=404,
+                        mimetype="application/json",
+                    )
+                pdf_bytes = local_path.read_bytes()
+            else:
+                account_url = f"https://{storage_account_name}.blob.core.windows.net"
+                blob_service_client = BlobServiceClient(
+                    account_url=account_url, credential=DefaultAzureCredential()
+                )
+                blob_client = blob_service_client.get_blob_client("documents", doc_path)
+                if not blob_client.exists():
+                    return func.HttpResponse(
+                        body=json.dumps({"error": "Document not found in blob storage"}),
+                        status_code=404,
+                        mimetype="application/json",
+                    )
+                pdf_bytes = blob_client.download_blob().readall()
+
+            return func.HttpResponse(
+                body=pdf_bytes,
+                status_code=200,
+                mimetype="application/pdf",
+                headers={"Content-Disposition": "inline"},
+            )
+
+        except Exception as e:
+            logger.error(f"Error serving document: {e}")
+            return func.HttpResponse(
+                body=json.dumps({"error": f"Failed to serve document: {str(e)}"}),
+                status_code=500,
+                mimetype="application/json",
+            )
+
     @app.route(route="idp/workflow/{instanceId}/status", methods=["GET"])
     @app.durable_client_input(client_name="client")
     async def http_get_workflow_status(

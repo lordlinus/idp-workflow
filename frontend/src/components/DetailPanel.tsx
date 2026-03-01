@@ -12,11 +12,14 @@ import {
   CompletionDashboard,
   DefaultView,
 } from './detail';
+import { DocumentViewer } from './DocumentViewer';
 
 export function DetailPanel() {
   const selectedStep = useWorkflowStore((state) => state.selectedStep);
   const steps = useWorkflowStore((state) => state.steps);
   const [showSchema, setShowSchema] = React.useState(false);
+  const [showDocument, setShowDocument] = React.useState(false);
+  const documentUrl = useWorkflowStore((state) => state.documentUrl);
   
   // Check if reasoning step is currently running
   const reasoningStep = steps.get('step_06_reasoning_agent');
@@ -31,10 +34,10 @@ export function DetailPanel() {
   const workflowStatus = useWorkflowStore((state) => state.status);
   const hasReasoningContent = isReasoningActive || reasoningChunks.length > 0;
   const isReasoningSelected = selectedStep === 'step_06_reasoning_agent';
-  const showReasoning = !showSchema && hasReasoningContent && (isReasoningSelected || selectedStep === null);
-  const showStepOutput = !showSchema && selectedStep !== null && !showReasoning;
-  const showCompletion = !showSchema && !showStepOutput && !showReasoning && workflowStatus === 'completed';
-  const showDefault = !showSchema && !showStepOutput && !showReasoning && !showCompletion;
+  const showReasoning = !showSchema && !showDocument && hasReasoningContent && (isReasoningSelected || selectedStep === null);
+  const showStepOutput = !showSchema && !showDocument && selectedStep !== null && !showReasoning;
+  const showCompletion = !showSchema && !showDocument && !showStepOutput && !showReasoning && workflowStatus === 'completed';
+  const showDefault = !showSchema && !showDocument && !showStepOutput && !showReasoning && !showCompletion;
 
   // Panel title
   let title = 'Details';
@@ -43,6 +46,9 @@ export function DetailPanel() {
   if (showSchema) {
     title = 'Extraction Schema';
     subtitle = 'Fields extracted from documents';
+  } else if (showDocument) {
+    title = 'Source Document';
+    subtitle = 'PDF being processed';
   } else if (showStepOutput && selectedStep) {
     const info = STEP_INFO[selectedStep];
     title = info?.displayName || 'Step Output';
@@ -73,9 +79,24 @@ export function DetailPanel() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {documentUrl && (
+              <button
+                type="button"
+                onClick={() => { setShowDocument(!showDocument); if (!showDocument) setShowSchema(false); }}
+                className={clsx(
+                  'text-xs px-3 py-1.5 rounded-lg border transition-all duration-200',
+                  showDocument
+                    ? 'bg-red-500/15 border-red-500/30 text-red-300 shadow-glow-red'
+                    : 'bg-dark-800/60 border-dark-600/40 text-dark-400 hover:text-dark-200 hover:border-dark-500'
+                )}
+                title="View source document"
+              >
+                📄 Document
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => setShowSchema(!showSchema)}
+              onClick={() => { setShowSchema(!showSchema); if (!showSchema) setShowDocument(false); }}
               className={clsx(
                 'text-xs px-3 py-1.5 rounded-lg border transition-all duration-200',
                 showSchema
@@ -93,6 +114,7 @@ export function DetailPanel() {
       {/* Content */}
       <div className="overflow-y-auto flex-1 px-5 py-4">
         {showSchema && <ExtractionSchemaView />}
+        {showDocument && <DocumentViewer />}
         {showStepOutput && selectedStep && <StepOutputView stepName={selectedStep} />}
         {showCompletion && <CompletionDashboard />}
         {showReasoning && (

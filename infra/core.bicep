@@ -208,7 +208,9 @@ resource durableTaskScheduler 'Microsoft.DurableTask/schedulers@2025-04-01-previ
       name: 'Dedicated'
       capacity: 1
     }
-    ipAllowlist: []
+    ipAllowlist: [
+      '0.0.0.0/0'
+    ]
   }
 }
 
