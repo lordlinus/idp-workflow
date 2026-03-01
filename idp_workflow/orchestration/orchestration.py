@@ -16,6 +16,7 @@ from idp_workflow.constants import (
     STEP5_HUMAN_REVIEW,
     STEP6_REASONING_AGENT,
     HITL_REVIEW_EVENT,
+    STEP_META,
 )
 from idp_workflow.config import HITL_TIMEOUT_HOURS
 from idp_workflow.models import WorkflowInitInput, Step03Output
@@ -23,21 +24,10 @@ from idp_workflow.utils.helpers import parse_human_approval
 
 logger = logging.getLogger(__name__)
 
-# Step display metadata (inlined from old utils/signalr.py)
-_STEP_META = {
-    "step_01_pdf_extraction": ("PDF to Markdown", 1),
-    "step_02_classification": ("Document Classification", 2),
-    "step_03_01_azure_extraction": ("Azure CU Extraction", 3),
-    "step_03_02_dspy_extraction": ("DSPy Extraction", 3),
-    "step_04_comparison": ("Extraction Comparison", 4),
-    "step_05_human_review": ("Human Review", 5),
-    "step_06_reasoning_agent": ("Reasoning (Agent)", 6),
-}
-
 
 def _step_display(step_name: str):
     """Return (display_name, step_number) for a step."""
-    return _STEP_META.get(step_name, (step_name, 0))
+    return STEP_META.get(step_name, (step_name, 0))
 
 
 def _broadcast(
@@ -86,6 +76,76 @@ def _generate_output_preview(step_output: dict, step_name: str) -> str:
         return json.dumps(step_output)[:200] if step_output else ""
 
 
+def _execute_step(
+    context,
+    user_id,
+    request_id,
+    step_name,
+    activity_name,
+    activity_input,
+    step_output_key="step_output",
+    enrich_output=None,
+):
+    """Execute a pipeline step with standardized SignalR broadcasts.
+
+    This is a generator — use ``yield from`` in the orchestrator to delegate
+    all yields and capture the return value.
+
+    Args:
+        step_output_key: Key to extract step output from the activity result.
+            Use None to treat the entire result as the step output.
+        enrich_output: Optional callable(result, step_output) -> step_output
+            to transform the step output before broadcasting completion.
+
+    Returns:
+        The raw activity result dict.
+    """
+    dn, sn = _step_display(step_name)
+    context.set_custom_status(f"[{request_id}] Step {sn}: {dn}")
+
+    yield _broadcast(context, user_id, "stepStarted", {
+        "stepName": step_name,
+        "displayName": dn,
+        "stepNumber": sn,
+        "status": "in_progress",
+    })
+
+    try:
+        result = yield context.call_activity(activity_name, activity_input)
+        step_output = (
+            result if step_output_key is None
+            else result.get(step_output_key, {})
+        )
+
+        if enrich_output is not None:
+            step_output = enrich_output(result, step_output)
+
+        yield _broadcast(context, user_id, "stepCompleted", {
+            "stepName": step_name,
+            "displayName": dn,
+            "stepNumber": sn,
+            "status": "completed",
+            "durationMs": step_output.get("processing_time_ms", 0),
+            "outputPreview": _generate_output_preview(step_output, step_name),
+            "outputData": step_output,
+        })
+
+        return result
+    except Exception as e:
+        error_msg = str(e)
+        context.set_custom_status(f"[{request_id}] Step {sn} FAILED: {error_msg}")
+
+        yield _broadcast(context, user_id, "stepFailed", {
+            "stepName": step_name,
+            "displayName": dn,
+            "stepNumber": sn,
+            "status": "failed",
+            "errorMessage": error_msg,
+            "errorType": type(e).__name__,
+        })
+        raise
+
+
 def register_orchestration(app):
     """Register the orchestration function with the Azure Functions app."""
 
@@ -123,157 +183,34 @@ def register_orchestration(app):
         # ====================================================================
         # STEP 1: PDF EXTRACTION
         # ====================================================================
-        context.set_custom_status(f"[{request_id}] Step 1: Extracting PDF to markdown")
-
-        try:
-            # Broadcast step started via SignalR
-            dn, sn = _step_display(STEP1_PDF_EXTRACTION)
-            yield _broadcast(
-                context,
-                user_id,
-                "stepStarted",
-                {
-                    "stepName": STEP1_PDF_EXTRACTION,
-                    "displayName": dn,
-                    "stepNumber": sn,
-                    "status": "in_progress",
-                },
-            )
-
-            step1_result = yield context.call_activity(
-                "activity_step_01_pdf_extraction",
-                {
-                    "pdf_path": pdf_path,
-                    "request_id": request_id,
-                },
-            )
-
-            pdf_content_info = step1_result.get("pdf_content", {})
-            step1_output = step1_result.get("step_output", {})
-
-            logger.info(f"[{request_id}] Step 1 completed: {pdf_content_info}")
-
-            # Broadcast step completed via SignalR
-
-            dn, sn = _step_display(STEP1_PDF_EXTRACTION)
-            yield _broadcast(
-                context,
-                user_id,
-                "stepCompleted",
-                {
-                    "stepName": STEP1_PDF_EXTRACTION,
-                    "displayName": dn,
-                    "stepNumber": sn,
-                    "status": "completed",
-                    "durationMs": step1_output.get("processing_time_ms", 0),
-                    "outputPreview": _generate_output_preview(
-                        step1_output, STEP1_PDF_EXTRACTION
-                    ),
-                    "outputData": step1_output,
-                },
-            )
-
-        except Exception as e:
-            error_msg = str(e)
-            context.set_custom_status(f"[{request_id}] Step 1 FAILED: {error_msg}")
-
-            # Broadcast step failure via SignalR
-            dn, sn = _step_display(STEP1_PDF_EXTRACTION)
-            yield _broadcast(
-                context,
-                user_id,
-                "stepFailed",
-                {
-                    "stepName": STEP1_PDF_EXTRACTION,
-                    "displayName": dn,
-                    "stepNumber": sn,
-                    "status": "failed",
-                    "errorMessage": error_msg,
-                    "errorType": type(e).__name__,
-                },
-            )
-            raise
+        step1_result = yield from _execute_step(
+            context, user_id, request_id,
+            STEP1_PDF_EXTRACTION, "activity_step_01_pdf_extraction",
+            {"pdf_path": pdf_path, "request_id": request_id},
+        )
+        pdf_content_info = step1_result.get("pdf_content", {})
+        step1_output = step1_result.get("step_output", {})
 
         # ====================================================================
         # STEP 2: CLASSIFICATION
         # ====================================================================
-        context.set_custom_status(f"[{request_id}] Step 2: Classifying document pages")
-
-        try:
-            # Broadcast step started via SignalR
-            dn, sn = _step_display(STEP2_CLASSIFICATION)
-            yield _broadcast(
-                context,
-                user_id,
-                "stepStarted",
-                {
-                    "stepName": STEP2_CLASSIFICATION,
-                    "displayName": dn,
-                    "stepNumber": sn,
-                    "status": "in_progress",
-                },
-            )
-
-            step2_result = yield context.call_activity(
-                "activity_step_02_classification",
-                {
-                    "pdf_content": pdf_content_info,
-                    "domain_id": domain_id,
-                    "request_id": request_id,
-                    "max_pages": max_pages,
-                    "options": options,
-                    "custom_classification_categories": custom_classification_categories,
-                },
-            )
-
-            primary_category = step2_result.get("primary_category", "Unknown")
-
-            logger.info(
-                f"[{request_id}] Step 2 completed: Primary category: {primary_category}"
-            )
-
-            step2_output = step2_result
-
-            # Broadcast step completed via SignalR
-
-            dn, sn = _step_display(STEP2_CLASSIFICATION)
-            yield _broadcast(
-                context,
-                user_id,
-                "stepCompleted",
-                {
-                    "stepName": STEP2_CLASSIFICATION,
-                    "displayName": dn,
-                    "stepNumber": sn,
-                    "status": "completed",
-                    "durationMs": step2_output.get("processing_time_ms", 0),
-                    "outputPreview": _generate_output_preview(
-                        step2_output, STEP2_CLASSIFICATION
-                    ),
-                    "outputData": step2_output,
-                },
-            )
-
-        except Exception as e:
-            error_msg = str(e)
-            context.set_custom_status(f"[{request_id}] Step 2 FAILED: {error_msg}")
-
-            # Broadcast step failure via SignalR
-            dn, sn = _step_display(STEP2_CLASSIFICATION)
-            yield _broadcast(
-                context,
-                user_id,
-                "stepFailed",
-                {
-                    "stepName": STEP2_CLASSIFICATION,
-                    "displayName": dn,
-                    "stepNumber": sn,
-                    "status": "failed",
-                    "errorMessage": error_msg,
-                    "errorType": type(e).__name__,
-                },
-            )
-            raise
+        step2_result = yield from _execute_step(
+            context, user_id, request_id,
+            STEP2_CLASSIFICATION, "activity_step_02_classification",
+            {
+                "pdf_content": pdf_content_info,
+                "domain_id": domain_id,
+                "request_id": request_id,
+                "max_pages": max_pages,
+                "options": options,
+                "custom_classification_categories": custom_classification_categories,
+                "user_id": user_id,
+                "instance_id": context.instance_id,
+            },
+            step_output_key=None,
+        )
+        primary_category = step2_result.get("primary_category", "Unknown")
+        step2_output = step2_result
 
         # ====================================================================
         # STEP 3: CONCURRENT DATA EXTRACTION (Azure + DSPy)
@@ -318,6 +255,8 @@ def register_orchestration(app):
                 "max_pages": max_pages,
                 "request_id": request_id,
                 "custom_extraction_schema": custom_extraction_schema,
+                "user_id": user_id,
+                "instance_id": context.instance_id,
             }
 
             # DSPy takes Step 1's full_text (markdown)
@@ -328,6 +267,8 @@ def register_orchestration(app):
                 "request_id": request_id,
                 "options": options,
                 "custom_extraction_schema": custom_extraction_schema,
+                "user_id": user_id,
+                "instance_id": context.instance_id,
             }
 
             # Create tasks for both extractors (they run in parallel)
@@ -432,83 +373,18 @@ def register_orchestration(app):
         # ====================================================================
         # STEP 4: COMPARISON (Azure vs DSPy)
         # ====================================================================
-        context.set_custom_status(
-            f"[{request_id}] Step 4: Comparing extraction results"
-        )
-
-        # Broadcast step started via SignalR
-        dn, sn = _step_display(STEP4_COMPARISON)
-        yield _broadcast(
-            context,
-            user_id,
-            "stepStarted",
+        step4_result = yield from _execute_step(
+            context, user_id, request_id,
+            STEP4_COMPARISON, "activity_step_04_comparison",
             {
-                "stepName": STEP4_COMPARISON,
-                "displayName": dn,
-                "stepNumber": sn,
-                "status": "in_progress",
+                "azure_data": azure_output.get("extracted_data", {}),
+                "dspy_data": dspy_output.get("extracted_data", {}),
+                "document_context": primary_category,
+                "request_id": request_id,
             },
         )
-
-        try:
-            comparison_result = yield context.call_activity(
-                "activity_step_04_comparison",
-                {
-                    "azure_data": azure_output.get("extracted_data", {}),
-                    "dspy_data": dspy_output.get("extracted_data", {}),
-                    "document_context": primary_category,
-                    "request_id": request_id,
-                },
-            )
-
-            comparison_data = comparison_result.get("comparison_result", {})
-            step4_output = comparison_result.get("step_output", {})
-
-            logger.info(
-                f"[{request_id}] Step 4 completed: "
-                f"{step4_output.get('matching_fields', 0)}/{step4_output.get('total_fields', 0)} matching"
-            )
-
-            # Broadcast step completed via SignalR
-
-            dn, sn = _step_display(STEP4_COMPARISON)
-            yield _broadcast(
-                context,
-                user_id,
-                "stepCompleted",
-                {
-                    "stepName": STEP4_COMPARISON,
-                    "displayName": dn,
-                    "stepNumber": sn,
-                    "status": "completed",
-                    "durationMs": step4_output.get("processing_time_ms", 0),
-                    "outputPreview": _generate_output_preview(
-                        step4_output, STEP4_COMPARISON
-                    ),
-                    "outputData": step4_output,
-                },
-            )
-
-        except Exception as e:
-            error_msg = str(e)
-            context.set_custom_status(f"[{request_id}] Step 4 FAILED: {error_msg}")
-
-            # Broadcast step failure via SignalR
-            dn, sn = _step_display(STEP4_COMPARISON)
-            yield _broadcast(
-                context,
-                user_id,
-                "stepFailed",
-                {
-                    "stepName": STEP4_COMPARISON,
-                    "displayName": dn,
-                    "stepNumber": sn,
-                    "status": "failed",
-                    "errorMessage": error_msg,
-                    "errorType": type(e).__name__,
-                },
-            )
-            raise
+        comparison_data = step4_result.get("comparison_result", {})
+        step4_output = step4_result.get("step_output", {})
 
         # ====================================================================
         # STEP 5: HUMAN REVIEW (HITL)
@@ -661,187 +537,37 @@ def register_orchestration(app):
         # STEP 6: REASONING AND SUMMARY (AI Foundry Agent with Tools)
         # ====================================================================
 
-        # Broadcast step started via SignalR
-        dn, sn = _step_display(STEP6_REASONING_AGENT)
-        yield _broadcast(
-            context,
-            user_id,
-            "stepStarted",
+        def _enrich_reasoning(result, step_output):
+            rd = result.get("reasoning_result", {})
+            step_output["ai_summary"] = rd.get("ai_summary", "")
+            step_output["recommendations"] = rd.get("recommendations", [])
+            return step_output
+
+        step6_result = yield from _execute_step(
+            context, user_id, request_id,
+            STEP6_REASONING_AGENT, "activity_step_06_reasoning_agent",
             {
-                "stepName": STEP6_REASONING_AGENT,
-                "displayName": dn,
-                "stepNumber": sn,
-                "status": "in_progress",
+                "document_type": primary_category,
+                "azure_data": azure_output.get("extracted_data", {}),
+                "dspy_data": dspy_output.get("extracted_data", {}),
+                "comparison_result": comparison_data,
+                "human_approved": human_response.get("approved", False),
+                "human_feedback": human_response.get("feedback", ""),
+                # Pass human-accepted values for final consolidation
+                "accepted_values": human_response.get("accepted_values", {}),
+                "default_source": human_response.get(
+                    "default_source", "comparison"
+                ),
+                "domain_id": domain_id,
+                "request_id": request_id,
+                # For direct SignalR streaming from the activity
+                "instance_id": context.instance_id,
+                "user_id": user_id,
             },
+            enrich_output=_enrich_reasoning,
         )
-
-        try:
-            reasoning_result = yield context.call_activity(
-                "activity_step_06_reasoning_agent",
-                {
-                    "document_type": primary_category,
-                    "azure_data": azure_output.get("extracted_data", {}),
-                    "dspy_data": dspy_output.get("extracted_data", {}),
-                    "comparison_result": comparison_data,
-                    "human_approved": human_response.get("approved", False),
-                    "human_feedback": human_response.get("feedback", ""),
-                    # NEW: Pass human-accepted values for final consolidation
-                    "accepted_values": human_response.get("accepted_values", {}),
-                    "default_source": human_response.get(
-                        "default_source", "comparison"
-                    ),
-                    "domain_id": domain_id,
-                    "request_id": request_id,
-                    # For streaming support
-                    "instance_id": context.instance_id,
-                },
-            )
-
-            reasoning_data = reasoning_result.get("reasoning_result", {})
-            step6_output = reasoning_result.get("step_output", {})
-            # Include AI summary and recommendations for frontend display
-            step6_output["ai_summary"] = reasoning_data.get("ai_summary", "")
-            step6_output["recommendations"] = reasoning_data.get("recommendations", [])
-
-            logger.info(
-                f"[{request_id}] Step 6 completed: "
-                f"confidence={step6_output.get('confidence_score', 0):.2f}"
-            )
-
-            # Broadcast reasoning chunks for real-time updates
-            chunk_index = 0
-
-            # Chunk 1: Validations summary
-            if step6_output.get("total_validations", 0) > 0:
-                yield _broadcast(
-                    context,
-                    user_id,
-                    "reasoningChunk",
-                    {
-                        "chunkType": "validation_summary",
-                        "content": f"✓ Validation Results: {step6_output.get('passed_validations', 0)}/{step6_output.get('total_validations', 0)} passed",
-                        "chunkIndex": chunk_index,
-                        "metadata": {
-                            "passed": step6_output.get("passed_validations", 0),
-                            "total": step6_output.get("total_validations", 0),
-                        },
-                    },
-                )
-                chunk_index += 1
-
-            # Chunk 2: Field matching summary
-            if step6_output.get("total_fields", 0) > 0:
-                matching_pct = (
-                    step6_output.get("matching_fields", 0)
-                    / step6_output.get("total_fields", 1)
-                ) * 100
-                yield _broadcast(
-                    context,
-                    user_id,
-                    "reasoningChunk",
-                    {
-                        "chunkType": "field_matching",
-                        "content": f"📊 Field Matching: {step6_output.get('matching_fields', 0)}/{step6_output.get('total_fields', 0)} fields match ({matching_pct:.1f}%)",
-                        "chunkIndex": chunk_index,
-                        "metadata": {
-                            "matching": step6_output.get("matching_fields", 0),
-                            "total": step6_output.get("total_fields", 0),
-                            "percentage": matching_pct,
-                        },
-                    },
-                )
-                chunk_index += 1
-
-            # Chunk 3: Confidence score
-            yield _broadcast(
-                context,
-                user_id,
-                "reasoningChunk",
-                {
-                    "chunkType": "confidence",
-                    "content": f"🎯 Confidence Score: {step6_output.get('confidence_score', 0):.2%}",
-                    "chunkIndex": chunk_index,
-                    "metadata": {
-                        "score": step6_output.get("confidence_score", 0),
-                    },
-                },
-            )
-            chunk_index += 1
-
-            # Chunk 4: AI Summary and recommendations (if available)
-            if reasoning_data.get("ai_summary"):
-                yield _broadcast(
-                    context,
-                    user_id,
-                    "reasoningChunk",
-                    {
-                        "chunkType": "summary",
-                        "content": reasoning_data.get("ai_summary", ""),
-                        "chunkIndex": chunk_index,
-                        "metadata": {
-                            "recommendation_count": len(
-                                reasoning_data.get("recommendations", [])
-                            ),
-                        },
-                    },
-                )
-                chunk_index += 1
-
-            # Chunk 5: Final result
-            yield _broadcast(
-                context,
-                user_id,
-                "reasoningChunk",
-                {
-                    "chunkType": "final",
-                    "content": "✅ Reasoning analysis complete",
-                    "chunkIndex": chunk_index,
-                    "metadata": {
-                        "is_final": True,
-                    },
-                },
-            )
-
-            # Broadcast step completed via SignalR
-
-            dn, sn = _step_display(STEP6_REASONING_AGENT)
-            yield _broadcast(
-                context,
-                user_id,
-                "stepCompleted",
-                {
-                    "stepName": STEP6_REASONING_AGENT,
-                    "displayName": dn,
-                    "stepNumber": sn,
-                    "status": "completed",
-                    "durationMs": step6_output.get("processing_time_ms", 0),
-                    "outputPreview": _generate_output_preview(
-                        step6_output, STEP6_REASONING_AGENT
-                    ),
-                    "outputData": step6_output,
-                },
-            )
-
-        except Exception as e:
-            error_msg = str(e)
-            context.set_custom_status(f"[{request_id}] Step 6 FAILED: {error_msg}")
-
-            # Broadcast step failure via SignalR
-            dn, sn = _step_display(STEP6_REASONING_AGENT)
-            yield _broadcast(
-                context,
-                user_id,
-                "stepFailed",
-                {
-                    "stepName": STEP6_REASONING_AGENT,
-                    "displayName": dn,
-                    "stepNumber": sn,
-                    "status": "failed",
-                    "errorMessage": error_msg,
-                    "errorType": type(e).__name__,
-                },
-            )
-            raise
+        reasoning_data = step6_result.get("reasoning_result", {})
+        step6_output = step6_result.get("step_output", {})
 
         # ====================================================================
         # RETURN FINAL OUTPUT
