@@ -40,6 +40,9 @@ param functionAppMaxInstances int = 100
 @description('Memory in MB per function app instance')
 param functionAppInstanceMemoryMB int = 2048
 
+@description('Principal ID of the deploying user (auto-populated by azd)')
+param principalId string = ''
+
 // ── Log Analytics Workspace ─────────────────────────────────────────────────
 
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
@@ -81,7 +84,8 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
     minimumTlsVersion: 'TLS1_2'
     supportsHttpsTrafficOnly: true
     allowSharedKeyAccess: false
-    publicNetworkAccess: 'SecuredByPerimeter'
+    // publicNetworkAccess is controlled by NSP association.
+    // Starts open so postdeploy can upload documents, then NSP is tightened to Enforced.
   }
 }
 
@@ -143,7 +147,9 @@ resource nspStorageAssociation 'Microsoft.Network/networkSecurityPerimeters/reso
     profile: {
       id: nspProfile.id
     }
-    accessMode: 'Enforced'
+    // Start in Learning mode so postdeploy hooks can upload documents.
+    // postdeploy.sh switches this to 'Enforced' after upload completes.
+    accessMode: 'Learning'
   }
 }
 
@@ -167,6 +173,30 @@ resource storageRoleAssignments 'Microsoft.Authorization/roleAssignments@2022-04
   }
 }]
 
+// ── RBAC: Deploying user → Storage (needed for azd deploy with shared key disabled) ─
+var deployerStorageRoleIds = [
+  'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'  // Storage Blob Data Owner
+  '17d1049b-9a84-46fb-8f53-869881c3d3ab'  // Storage Account Contributor
+]
+
+resource deployerStorageRoleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for roleId in deployerStorageRoleIds: if (!empty(principalId)) {
+  name: guid(storageAccount.id, principalId, roleId)
+  scope: storageAccount
+  properties: {
+    principalId: principalId
+    principalType: 'User'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleId)
+  }
+}]
+
+// ── User-Assigned Managed Identity (for DTS access) ────────────────────────
+
+resource dtsIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+  name: 'id-dts-${resourceToken}'
+  location: location
+  tags: tags
+}
+
 // ── Durable Task Scheduler ───────────────────────────────────────────────────
 
 resource durableTaskScheduler 'Microsoft.DurableTask/schedulers@2025-04-01-preview' = {
@@ -178,6 +208,7 @@ resource durableTaskScheduler 'Microsoft.DurableTask/schedulers@2025-04-01-previ
       name: 'Dedicated'
       capacity: 1
     }
+    ipAllowlist: []
   }
 }
 
@@ -190,10 +221,10 @@ resource durableTaskHub 'Microsoft.DurableTask/schedulers/taskHubs@2025-04-01-pr
 // ── RBAC: Function App → Durable Task Scheduler ────────────────────────────
 
 resource durableTaskDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(durableTaskScheduler.id, functionApp.id, '0ad04412-c4d5-4796-b79c-f76d14c8d402')
+  name: guid(durableTaskScheduler.id, dtsIdentity.id, '0ad04412-c4d5-4796-b79c-f76d14c8d402')
   scope: durableTaskScheduler
   properties: {
-    principalId: functionApp.identity.principalId
+    principalId: dtsIdentity.properties.principalId
     principalType: 'ServicePrincipal'
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '0ad04412-c4d5-4796-b79c-f76d14c8d402')
   }
@@ -225,7 +256,10 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
   })
   kind: 'functionapp,linux'
   identity: {
-    type: 'SystemAssigned'
+    type: 'SystemAssigned, UserAssigned'
+    userAssignedIdentities: {
+      '${dtsIdentity.id}': {}
+    }
   }
   properties: {
     serverFarmId: functionPlan.id
@@ -256,9 +290,7 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
         { name: 'FUNCTIONS_EXTENSION_VERSION', value: '~4' }
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
         { name: 'TASKHUB_NAME', value: taskHubName }
-        { name: 'DurableTaskSchedulerConnection__endpoint', value: durableTaskScheduler.properties.endpoint }
-        { name: 'DurableTaskSchedulerConnection__taskHub', value: taskHubName }
-        { name: 'DurableTaskSchedulerConnection__authentication', value: 'ManagedIdentity' }
+        { name: 'DurableTaskSchedulerConnection', value: 'Endpoint=${durableTaskScheduler.properties.endpoint};Authentication=ManagedIdentity;ClientId=${dtsIdentity.properties.clientId}' }
         { name: 'AzureSignalRConnectionString', value: azureSignalRConnectionString }
         { name: 'AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT', value: azureDocumentIntelligenceEndpoint }
         { name: 'AZURE_DOCUMENT_INTELLIGENCE_KEY', value: azureDocumentIntelligenceKey }

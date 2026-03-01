@@ -49,7 +49,7 @@ param azureOpenAIReasoningDeploymentName string = 'o3-mini'
 param azureOpenAIApiVersion string = '2025-01-01-preview'
 
 @description('Durable Functions task hub name')
-param taskHubName string = 'IDPWorkflow'
+param taskHubName string = 'idpworkflow'
 
 @description('Log Analytics workspace retention in days')
 param logAnalyticsRetentionDays int = 30
@@ -62,6 +62,9 @@ param functionAppMaxInstances int = 100
 
 @description('Memory in MB per function app instance')
 param functionAppInstanceMemoryMB int = 2048
+
+@description('Principal ID of the deploying user (auto-populated by azd)')
+param principalId string = ''
 
 // ── Tags ────────────────────────────────────────────────────────────────────
 
@@ -104,6 +107,7 @@ module core 'core.bicep' = {
     storageAccountSkuName: storageAccountSkuName
     functionAppMaxInstances: functionAppMaxInstances
     functionAppInstanceMemoryMB: functionAppInstanceMemoryMB
+    principalId: principalId
   }
 }
 

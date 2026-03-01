@@ -1,395 +1,34 @@
 # Intelligent Document Processing (IDP) Workflow
 
-**Professional, Real-time Document Processing with Next.js UI + Azure Durable Functions**
+[![GitHub stars](https://img.shields.io/github/stars/lordlinus/idp-workflow?style=flat-square)](https://github.com/lordlinus/idp-workflow/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/lordlinus/idp-workflow?style=flat-square)](https://github.com/lordlinus/idp-workflow/network/members)
+[![GitHub issues](https://img.shields.io/github/issues/lordlinus/idp-workflow?style=flat-square)](https://github.com/lordlinus/idp-workflow/issues)
+[![License](https://img.shields.io/github/license/lordlinus/idp-workflow?style=flat-square)](LICENSE)
+[![Deploy to Azure](https://img.shields.io/badge/azd-Deploy%20to%20Azure-blue?style=flat-square&logo=microsoft-azure)](https://learn.microsoft.com/azure/developer/azure-developer-cli/)
 
-Multi-agent Azure Functions application for intelligent document processing using Azure AI services, DSPy framework, and a modern Next.js dashboard with real-time SignalR updates and Reaflow workflow visualization.
+End-to-end document processing pipeline on Azure — upload a PDF, get structured data back with human-in-the-loop validation and AI reasoning.
 
-## 🎯 Overview
+Built with **Azure Durable Functions**, **Azure Document Intelligence**, **DSPy**, and a **Next.js** real-time dashboard.
 
-This IDP workflow processes documents through a sophisticated pipeline that combines:
+## Features
 
-- **Azure Document Intelligence** - PDF extraction and OCR
-- **DSPy Framework** - Classification and structured extraction
-- **Azure Content Understanding** - AI-powered content analysis
-- **Human-in-the-Loop (HITL)** - Elegant review and validation interface
-- **AI Reasoning Agent** - Intelligent decision-making and summarization
-- **Real-time Dashboard** - Next.js UI with Reaflow workflow visualization
-- **SignalR Real-time Updates** - Live progress tracking for all users
+- **6-step pipeline** — extraction → classification → dual AI extraction → comparison → human review → AI reasoning
+- **Real-time UI** — Next.js dashboard with SignalR live updates and Reaflow workflow visualization
+- **Human-in-the-Loop** — side-by-side field comparison with approve / reject / edit
+- **Domain-driven** — add new document types by dropping JSON config files (no code changes)
+- **Production-ready infra** — Flex Consumption Functions, Network Security Perimeter, managed identity, Application Insights
 
-## ⚡ Quick Start
+## Deploy to Azure
+
+> **Prerequisites:** [Azure Developer CLI](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd), [Azure Functions Core Tools v4](https://learn.microsoft.com/azure/azure-functions/functions-run-tools), [Node.js 18+](https://nodejs.org/), [Python 3.13+](https://www.python.org/), and an Azure subscription with Azure OpenAI, Document Intelligence, Content Understanding (CU), and SignalR Service already provisioned.
 
 ```bash
-# Terminal 1: Backend
-source .venv/bin/activate && func start
-
-# Terminal 2: Frontend
-cd frontend && npm run dev
-```
-
-**See the [Getting Started](#-getting-started) section below for detailed setup instructions.**
-
-## 📁 Project Structure
-
-```
-├── frontend/                    # 🆕 Next.js 14 Frontend
-│   ├── src/
-│   │   ├── app/                # Pages and layout
-│   │   ├── components/         # React components
-│   │   │   ├── FileUploadArea.tsx
-│   │   │   ├── WorkflowDiagram.tsx (Reaflow)
-│   │   │   ├── HITLReviewPanel.tsx
-│   │   │   ├── ReasoningPanel.tsx
-│   │   │   └── ...
-│   │   ├── lib/                # Services and utilities
-│   │   │   ├── apiClient.ts
-│   │   │   ├── signalrClient.ts
-│   │   │   └── queryKeys.ts
-│   │   ├── store/              # Zustand stores
-│   │   └── types/              # TypeScript types
-│   ├── package.json
-│   ├── tailwind.config.ts
-│   └── README.md
-│
-├── function_app.py              # Azure Functions entry point
-├── requirements.txt             # Python dependencies
-├── host.json                    # Azure Functions configuration
-├── local.settings.json          # Local environment variables
-│
-├── sample_documents/            # Sample PDFs for testing
-│
-├── azure.yaml                   # Azure Developer CLI configuration
-├── infra/                       # Infrastructure as Code (Bicep)
-│   ├── main.bicep              # Main infrastructure template
-│   ├── core.bicep              # Core resource definitions
-│   └── main.parameters.json   # Parameter values
-│
-└── idp_workflow/                # Main workflow package
-    ├── constants.py             # Configuration constants
-    ├── config.py                # Settings management
-    ├── models.py                # Pydantic data models
-    │
-    ├── activities/              # Azure Durable Functions activities
-    │   └── activities.py        # Step execution activities
-    │
-    ├── orchestration/           # Workflow orchestration
-    │   ├── orchestration.py     # Main workflow coordinator
-    │   └── state.py             # State management
-    │
-    ├── api/                     # HTTP and SignalR endpoints
-    │   └── endpoints.py         # REST API and real-time endpoints
-    │
-    ├── steps/                   # Workflow step implementations
-    │   ├── step_01_pdf_extractor.py
-    │   ├── step_02_classifier.py
-    │   ├── step_03_extractors.py
-    │   ├── step_04_comparator.py
-    │   └── step_06_reasoning_agent.py
-    │
-    ├── utils/                   # Shared utilities
-    │   ├── helpers.py           # Helper functions
-    │   └── signalr.py           # SignalR message builders
-    │
-    ├── domains/                 # Domain-specific configurations
-    │   ├── domain_loader.py
-    │   ├── home_loan/
-    │   ├── insurance_claims/
-    │   ├── small_business_lending/
-    │   └── trade_finance/
-    │
-    └── tools/                   # AI Agent tools
-        ├── content_understanding_tool.py
-        └── dspy_utils.py
-```
-
-## 🎨 Frontend Features
-
-- **Real-time Workflow Visualization** - Reaflow-based 6-step pipeline diagram
-- **Live Status Updates** - SignalR for real-time step progress
-- **HITL Review Panel** - Elegant side-by-side field comparison (Azure vs DSPy)
-- **Streaming Reasoning** - Real-time AI reasoning chunks with chunk-type formatting
-- **Workflow History** - Browse previous workflows via Azure Durable Functions
-- **Professional Dark Theme** - Modern, polished UI with smooth animations
-- **Responsive Design** - Works on desktop and mobile
-
-## 🔧 Tech Stack
-
-### Frontend
-- Next.js 14 (App Router)
-- TypeScript (strict mode)
-- Tailwind CSS
-- Zustand + Immer (state management)
-- @tanstack/react-query (data fetching)
-- @microsoft/signalr (real-time)
-- Reaflow (workflow visualization)
-
-### Backend
-- Azure Functions (Python)
-- Azure Durable Functions (orchestration)
-- Azure SignalR Service (real-time)
-- Azure Blob Storage (document storage)
-- Azure OpenAI (AI reasoning)
-- DSPy Framework (extraction)
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Python 3.13+
-- Azure Functions Core Tools v4
-- Azure account with:
-  - Azure API Management (APIM) gateway for LLM calls
-  - Azure Document Intelligence
-  - Azure SignalR Service
-  - Azure Storage Account
-
-### Installation
-
-1. **Clone the repository**
-
-   ```bash
-   git clone <repository-url>
-   cd <repository-name>
-   ```
-
-2. **Create virtual environment**
-
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
-
-3. **Install dependencies**
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Configure environment variables**
-
-   Edit `local.settings.json` and fill in your Azure service credentials (see `local.settings.json` template in the repo):
-
-   Required environment variables:
-   - `AZURE_OPENAI_ENDPOINT`
-   - `AZURE_OPENAI_KEY`
-   - `AZURE_OPENAI_CHAT_DEPLOYMENT_NAME`
-   - `AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT`
-   - `AZURE_DOCUMENT_INTELLIGENCE_KEY`
-   - `COGNITIVE_SERVICES_ENDPOINT`
-   - `COGNITIVE_SERVICES_KEY`
-   - `AzureSignalRConnectionString`
-   - `AzureWebJobsStorage`
-
-### Running Locally
-
-1. **Start the Azure Functions host**
-
-   ```bash
-   func start
-   ```
-
-2. **Open the web UI**
-
-   Navigate to `http://localhost:3000` (frontend dev server).
-
-3. **Test with sample documents**
-
-   Upload documents through the UI or use curl (see [Testing](#-testing) section).
-
-## 📋 Workflow Steps
-
-The IDP workflow processes documents through these stages:
-
-1. **PDF Extraction** - Extract text and structure from PDF using Azure Document Intelligence
-2. **Classification** - Categorize document type using DSPy classifier
-3. **Data Extraction** - Extract structured data using:
-   - Azure Content Understanding (AI service)
-   - DSPy Extractors (LLM-based)
-4. **Comparison** - Compare results from both extraction methods
-5. **Human Review** - Present discrepancies for human validation (HITL)
-6. **AI Reasoning** - Intelligent analysis, validation, and summary generation
-
-## ➕ Adding a New Pipeline Step
-
-Follow this checklist to wire up a new step end-to-end.
-
-### Backend (4 files)
-
-**1. Register in `idp_workflow/constants.py`** — append a `StepInfo` to the `STEPS` tuple and add a constant:
-
-```python
-STEPS: tuple[StepInfo, ...] = (
-    ...
-    StepInfo("step_07_my_step", "My Step", 7, "activity_step_07_my_step"),
-)
-
-STEP7_MY_STEP = "step_07_my_step"
-```
-
-**2. Create step logic in `idp_workflow/steps/step_07_my_step.py`** — implement an async method returning `(result, step_output)`:
-
-```python
-class MyStepExecutor:
-    async def execute(self, ...) -> tuple[MyModel, dict]:
-        # ... do work ...
-        return result, {"summary_field": value}
-```
-
-**3. Add activity in `idp_workflow/activities/activities.py`** — use `ActivityContext` for logging/timing:
-
-```python
-@app.activity_trigger(input_name="request")
-async def activity_step_07_my_step(request: dict) -> dict:
-    ctx = ActivityContext(request, "My step")
-    try:
-        ctx.log_start()
-        # ... call step logic ...
-        ctx.log_complete(f"done in {ctx.elapsed_ms}ms")
-        return {"extraction_result": result.model_dump(), "step_output": output}
-    except Exception:
-        ctx.log_error()
-        raise
-```
-
-**4. Add to orchestrator in `idp_workflow/orchestration/orchestration.py`** — use `_execute_step()`:
-
-```python
-step7_result = yield from _execute_step(
-    context, user_id, request_id,
-    STEP7_MY_STEP, "activity_step_07_my_step",
-    {"request_id": request_id, "some_input": value},
-)
-```
-
-### Frontend (2 files)
-
-**5. Add step config in `frontend/src/lib/stepConfig.ts`** — append to `STEP_CONFIGS` and add to the `StepName` union type in `frontend/src/types/`:
-
-```typescript
-{
-  name: 'step_07_my_step',
-  number: 7,
-  displayName: 'My Step',
-  fullDisplayName: 'My Step',
-  description: 'What this step does',
-  icon: '🔧',
-},
-```
-
-**6. Add output renderer in `frontend/src/components/detail/StepOutputRenderer.tsx`** — add a branch in `StepOutputRenderer` and a component:
-
-```tsx
-if (stepName === 'step_07_my_step') {
-  return <MyStepOutput output={output} />;
-}
-```
-
-Steps without a dedicated renderer automatically use `GenericOutput` (key-value display).
-
-### Optional
-
-- **Add Pydantic model** in `idp_workflow/models.py` for typed step output.
-- **Add error class** in `idp_workflow/errors.py` inheriting from `IDPError`.
-- **Add domain configs** in `idp_workflow/domains/<domain>/` if the step uses domain-specific settings.
-
-## 🔌 API Endpoints
-
-### HTTP Endpoints
-
-- `POST /api/idp/start` - Start a new workflow
-- `POST /api/idp/hitl/review/{instanceId}` - Submit human review decision
-
-### SignalR Endpoints
-
-- `GET/POST /api/idp/negotiate` - Negotiate SignalR connection
-- `POST /api/idp/subscribe/{instanceId}` - Subscribe to workflow updates
-- `POST /api/idp/unsubscribe/{instanceId}` - Unsubscribe from updates
-
-### Real-time Events
-
-- `stepStarted` - Step begins execution
-- `stepCompleted` - Step completes successfully
-- `stepFailed` - Step encounters an error
-- `hitlWaiting` - Waiting for human review
-- `reasoningChunk` - Streaming reasoning output
-- `workflowCompleted` - Workflow finishes
-
-## 🔧 Configuration
-
-### Domain Configuration
-
-Each domain (e.g., insurance_claims, home_loan) has its own configuration:
-
-```
-idp_workflow/domains/<domain_name>/
-├── config.json                      # Domain settings
-├── classification_categories.json   # Document categories
-├── extraction_schema.json          # Data extraction schema
-└── validation_rules.json           # Validation rules
-```
-
-To add a new domain:
-
-1. Create a new folder in `idp_workflow/domains/`
-2. Add the four configuration files
-3. The domain will be automatically loaded
-
-### DSPy Configuration
-
-Configure DSPy LM settings in `idp_workflow/config.py`:
-
-- Model name and deployment
-- Temperature and max tokens
-- Retry logic and caching
-
-## 📊 Monitoring
-
-- **Application Insights** - Logs and telemetry
-- **SignalR Events** - Real-time progress tracking
-- **Function Logs** - Detailed execution traces
-
-## 🧪 Testing
-
-Test the API using curl:
-
-```bash
-# Start workflow
-curl -X POST http://localhost:7071/api/idp/start \
-  -H "Content-Type: application/json" \
-  -d '{
-    "pdf_path": "/path/to/document.pdf",
-    "domain_id": "insurance_claims",
-    "max_pages": 50
-  }'
-
-# Submit review
-curl -X POST http://localhost:7071/api/idp/hitl/review/{instanceId} \
-  -H "Content-Type: application/json" \
-  -d '{
-    "approved": true,
-    "reviewer": "user@example.com",
-    "feedback": "Looks good"
-  }'
-```
-
-## 🚀 Deploy to Azure
-
-This project uses [Azure Developer CLI (azd)](https://learn.microsoft.com/azure/developer/azure-developer-cli/) for deployment.
-
-### Prerequisites
-- [Azure Developer CLI](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd)
-- [Azure Functions Core Tools v4](https://learn.microsoft.com/azure/azure-functions/functions-run-tools)
-- [Node.js 18+](https://nodejs.org/)
-- [Python 3.13+](https://www.python.org/)
-- An Azure subscription with existing services:
-  - Azure SignalR Service
-  - Azure Document Intelligence
-  - Azure Cognitive Services (Content Understanding)
-  - Azure API Management (APIM) gateway for LLM calls
-
-### Deploy
-```bash
-# Initialize environment
-azd init --environment <env-name>
+# Clone and initialize
+azd init --template lordlinus/idp-workflow --environment <env-name>
+
+# Set regions (SWA is limited to: centralus, eastus2, eastasia, westeurope, westus2)
+azd env set AZURE_LOCATION "swedencentral"
+azd env set AZURE_SWA_LOCATION "eastasia"
 
 # Configure external service connections
 azd env set AZURE_SIGNALR_CONNECTION_STRING "<value>"
@@ -397,32 +36,99 @@ azd env set AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT "<value>"
 azd env set AZURE_DOCUMENT_INTELLIGENCE_KEY "<value>"
 azd env set COGNITIVE_SERVICES_ENDPOINT "<value>"
 azd env set COGNITIVE_SERVICES_KEY "<value>"
-azd env set AZURE_OPENAI_ENDPOINT "<your-apim-gateway-url>"
-azd env set AZURE_OPENAI_KEY "<your-apim-subscription-key>"
+azd env set AZURE_OPENAI_ENDPOINT "<your-endpoint-or-apim-gateway-url>"
+azd env set AZURE_OPENAI_KEY "<your-key-or-apim-subscription-key>"
 azd env set AZURE_OPENAI_CHAT_DEPLOYMENT_NAME "gpt-4.1"
 azd env set AZURE_OPENAI_REASONING_DEPLOYMENT_NAME "o3-mini"
 azd env set AZURE_OPENAI_API_VERSION "2025-01-01-preview"
-azd env set TASKHUB_NAME "IDPWorkflow"
+azd env set TASKHUB_NAME "idpworkflow"
 
-# Provision infrastructure and deploy
+# Provision and deploy (~15-20 min)
 azd up
 ```
 
-## 🤝 Contributing
+<details>
+<summary>What gets deployed</summary>
 
-1. Follow the existing code structure
+| Resource | Purpose |
+|----------|---------|
+| Azure Functions (Flex Consumption) | Backend API + orchestration |
+| Azure Static Web App | Next.js frontend |
+| Durable Task Scheduler | Orchestration state management |
+| Storage Account | Blob storage for documents |
+| Application Insights | Monitoring and diagnostics |
+| User-Assigned Managed Identity | Passwordless DTS authentication |
+| Network Security Perimeter | Storage network lockdown |
+
+The `postdeploy` hook automatically uploads sample documents, locks down storage networking (NSP → Enforced), and grants your identity access to the [DTS dashboard](https://dashboard.durabletask.io/).
+
+</details>
+
+To tear down all resources:
+
+```bash
+azd down --purge
+```
+
+## Run Locally
+
+```bash
+# Backend (Terminal 1)
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+func start
+
+# Frontend (Terminal 2)
+cd frontend && npm install && npm run dev
+```
+
+Open <http://localhost:3000> and upload a PDF from `sample_documents/`.
+
+See [Local Development Guide](docs/local-development.md) for full environment setup including `local.settings.json` configuration.
+
+## How It Works
+
+```
+POST /api/idp/start
+ → Step 1  PDF Extraction        (Azure Document Intelligence → Markdown)
+ → Step 2  Classification        (DSPy ChainOfThought)
+ → Step 3  Data Extraction       (Azure CU + DSPy, run in parallel)
+ → Step 4  Comparison            (field-by-field diff)
+ → Step 5  Human Review          (HITL — waits for approval or timeout)
+ → Step 6  AI Reasoning Agent    (validation, summary, recommendations)
+ → Final result returned
+```
+
+Each step broadcasts `stepStarted` / `stepCompleted` events via SignalR so the frontend updates in real time.
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Architecture & Patterns](docs/architecture.md) | Deep dive into backend/frontend patterns, project structure, and how to extend the pipeline |
+| [Local Development](docs/local-development.md) | Environment variables, DTS emulator, running backend + frontend locally |
+
+## Tech Stack
+
+| Layer | Technologies |
+|-------|-------------|
+| **Frontend** | Next.js 14, TypeScript, Tailwind CSS, Zustand + Immer, React Query, SignalR, Reaflow |
+| **Backend** | Python 3.13, Azure Functions, Durable Functions, DSPy, Azure Document Intelligence, Azure OpenAI |
+| **Infra** | Bicep, azd, Flex Consumption, Durable Task Scheduler, Network Security Perimeter |
+
+## Contributing
+
+1. Follow the existing code structure and [architecture patterns](docs/architecture.md)
 2. Add tests for new features
 3. Update documentation
 4. Submit pull requests for review
 
-## 📝 License
+## License
 
-[Your License Here]
+[MIT](LICENSE)
 
-## 🆘 Support
+## Support
 
-For issues or questions:
-
-- Check the documentation in `docs/`
+- [Open an issue](https://github.com/lordlinus/idp-workflow/issues) on GitHub
 - Review logs in Application Insights
-- Contact the development team
+- Access the [DTS dashboard](https://dashboard.durabletask.io/) for orchestration debugging

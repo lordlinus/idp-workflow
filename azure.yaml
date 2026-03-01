@@ -1,6 +1,18 @@
 name: idp-workflow
 metadata:
   template: idp-workflow@0.0.1
+  description: Intelligent Document Processing workflow with Azure Durable Functions, DSPy, and Next.js dashboard
+  author: lordlinus
+  source: https://github.com/lordlinus/idp-workflow
+  tags:
+    - azure-functions
+    - durable-functions
+    - document-intelligence
+    - dspy
+    - nextjs
+    - signalr
+    - python
+    - ai
 hooks:
   postdeploy:
     shell: sh
