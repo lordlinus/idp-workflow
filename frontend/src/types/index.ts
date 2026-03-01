@@ -51,6 +51,7 @@ export type SignalREventType =
   | 'stepStarted'
   | 'stepCompleted'
   | 'stepFailed'
+  | 'stepProgress'
   | 'hitlWaiting'
   | 'hitlApproved'
   | 'hitlRejected'
@@ -135,8 +136,18 @@ export interface HITLRejectedData {
   approved: false;
 }
 
+// Step Progress (intermediate updates from within activities)
+export interface StepProgressData {
+  stepName: StepName;
+  message: string;
+  progress?: number;           // 0-100 percentage (optional)
+  detail?: string;             // Extra detail line
+  subStep?: string;            // e.g. "page_classification", "analyzer_creation"
+  metadata?: Record<string, unknown>;
+}
+
 // Reasoning Types
-export type ReasoningChunkType = 'validation_summary' | 'field_matching' | 'confidence' | 'summary' | 'final';
+export type ReasoningChunkType = 'tool_call' | 'tool_result' | 'validation_summary' | 'field_matching' | 'confidence' | 'summary' | 'final' | 'error';
 
 export interface ReasoningChunkData {
   chunkType: ReasoningChunkType;

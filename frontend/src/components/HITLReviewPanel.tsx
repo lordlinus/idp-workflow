@@ -2,39 +2,9 @@ import React from 'react';
 import { useWorkflowStore } from '@/store/workflowStore';
 import { useUIStore } from '@/store/uiStore';
 import { useSubmitHITLReview } from '@/lib/queryKeys';
+import { formatFieldValue } from '@/lib/formatting';
 import { FieldSelection, FieldComparison } from '@/types';
 import clsx from 'clsx';
-
-/**
- * Safely format a field value for display.
- * Handles objects, arrays, nulls, and primitives.
- */
-function formatFieldValue(value: unknown): string {
-  if (value === null || value === undefined) return '—';
-  if (typeof value === 'string') return value || '—';
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  if (Array.isArray(value)) {
-    return value
-      .map((item, i) =>
-        typeof item === 'object' && item !== null
-          ? Object.entries(item)
-              .filter(([, v]) => v !== null && v !== undefined && v !== '')
-              .map(([k, v]) => `${k}: ${v}`)
-              .join(', ')
-          : String(item)
-      )
-      .join('\n');
-  }
-  if (typeof value === 'object') {
-    return Object.entries(value as Record<string, unknown>)
-      .filter(([, v]) => v !== null && v !== undefined && v !== '')
-      .map(([k, v]) =>
-        typeof v === 'object' ? `${k}: ${JSON.stringify(v)}` : `${k}: ${v}`
-      )
-      .join('\n');
-  }
-  return String(value);
-}
 
 type FilterTab = 'all' | 'conflicts' | 'matching';
 

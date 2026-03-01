@@ -51,6 +51,18 @@ param azureOpenAIApiVersion string = '2025-01-01-preview'
 @description('Durable Functions task hub name')
 param taskHubName string = 'IDPWorkflow'
 
+@description('Log Analytics workspace retention in days')
+param logAnalyticsRetentionDays int = 30
+
+@description('Storage account SKU name')
+param storageAccountSkuName string = 'Standard_LRS'
+
+@description('Maximum number of function app instances')
+param functionAppMaxInstances int = 100
+
+@description('Memory in MB per function app instance')
+param functionAppInstanceMemoryMB int = 2048
+
 // ── Tags ────────────────────────────────────────────────────────────────────
 
 var tags = {
@@ -88,6 +100,10 @@ module core 'core.bicep' = {
     azureOpenAIReasoningDeploymentName: azureOpenAIReasoningDeploymentName
     azureOpenAIApiVersion: azureOpenAIApiVersion
     taskHubName: taskHubName
+    logAnalyticsRetentionDays: logAnalyticsRetentionDays
+    storageAccountSkuName: storageAccountSkuName
+    functionAppMaxInstances: functionAppMaxInstances
+    functionAppInstanceMemoryMB: functionAppInstanceMemoryMB
   }
 }
 
@@ -106,3 +122,4 @@ output STATIC_WEB_APP_URL string = core.outputs.staticWebAppUrl
 output FUNCTION_APP_URL string = core.outputs.functionAppUrl
 output NEXT_PUBLIC_API_BASE_URL string = core.outputs.functionAppUrl
 output AZURE_STORAGE_ACCOUNT_NAME string = core.outputs.storageAccountName
+output DURABLE_TASK_SCHEDULER_ENDPOINT string = core.outputs.durableTaskSchedulerEndpoint

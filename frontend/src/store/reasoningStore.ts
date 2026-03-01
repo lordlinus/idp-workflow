@@ -18,6 +18,15 @@ export const useReasoningStore = create<ReasoningState>()(
 
     addChunk: (chunk: ReasoningChunk) => {
       set((state) => {
+        // For streaming "summary" chunks, replace the existing summary
+        // entry instead of appending a new card every token.
+        if (chunk.chunkType === 'summary' && chunk.metadata?.isStreaming) {
+          const existingIdx = state.chunks.findIndex((c) => c.chunkType === 'summary');
+          if (existingIdx !== -1) {
+            state.chunks[existingIdx] = chunk;
+            return;
+          }
+        }
         state.chunks.push(chunk);
       });
     },

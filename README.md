@@ -208,6 +208,89 @@ The IDP workflow processes documents through these stages:
 5. **Human Review** - Present discrepancies for human validation (HITL)
 6. **AI Reasoning** - Intelligent analysis, validation, and summary generation
 
+## ➕ Adding a New Pipeline Step
+
+Follow this checklist to wire up a new step end-to-end.
+
+### Backend (4 files)
+
+**1. Register in `idp_workflow/constants.py`** — append a `StepInfo` to the `STEPS` tuple and add a constant:
+
+```python
+STEPS: tuple[StepInfo, ...] = (
+    ...
+    StepInfo("step_07_my_step", "My Step", 7, "activity_step_07_my_step"),
+)
+
+STEP7_MY_STEP = "step_07_my_step"
+```
+
+**2. Create step logic in `idp_workflow/steps/step_07_my_step.py`** — implement an async method returning `(result, step_output)`:
+
+```python
+class MyStepExecutor:
+    async def execute(self, ...) -> tuple[MyModel, dict]:
+        # ... do work ...
+        return result, {"summary_field": value}
+```
+
+**3. Add activity in `idp_workflow/activities/activities.py`** — use `ActivityContext` for logging/timing:
+
+```python
+@app.activity_trigger(input_name="request")
+async def activity_step_07_my_step(request: dict) -> dict:
+    ctx = ActivityContext(request, "My step")
+    try:
+        ctx.log_start()
+        # ... call step logic ...
+        ctx.log_complete(f"done in {ctx.elapsed_ms}ms")
+        return {"extraction_result": result.model_dump(), "step_output": output}
+    except Exception:
+        ctx.log_error()
+        raise
+```
+
+**4. Add to orchestrator in `idp_workflow/orchestration/orchestration.py`** — use `_execute_step()`:
+
+```python
+step7_result = yield from _execute_step(
+    context, user_id, request_id,
+    STEP7_MY_STEP, "activity_step_07_my_step",
+    {"request_id": request_id, "some_input": value},
+)
+```
+
+### Frontend (2 files)
+
+**5. Add step config in `frontend/src/lib/stepConfig.ts`** — append to `STEP_CONFIGS` and add to the `StepName` union type in `frontend/src/types/`:
+
+```typescript
+{
+  name: 'step_07_my_step',
+  number: 7,
+  displayName: 'My Step',
+  fullDisplayName: 'My Step',
+  description: 'What this step does',
+  icon: '🔧',
+},
+```
+
+**6. Add output renderer in `frontend/src/components/detail/StepOutputRenderer.tsx`** — add a branch in `StepOutputRenderer` and a component:
+
+```tsx
+if (stepName === 'step_07_my_step') {
+  return <MyStepOutput output={output} />;
+}
+```
+
+Steps without a dedicated renderer automatically use `GenericOutput` (key-value display).
+
+### Optional
+
+- **Add Pydantic model** in `idp_workflow/models.py` for typed step output.
+- **Add error class** in `idp_workflow/errors.py` inheriting from `IDPError`.
+- **Add domain configs** in `idp_workflow/domains/<domain>/` if the step uses domain-specific settings.
+
 ## 🔌 API Endpoints
 
 ### HTTP Endpoints

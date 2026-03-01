@@ -5,7 +5,7 @@ import json
 import logging
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import dspy
 from pydantic import BaseModel
@@ -40,6 +40,7 @@ class AzureExtractor:
         domain_id: str,
         schema_path: Path | None = None,
         schema_dict: dict | None = None,
+        on_progress: Callable[[str, str | None], None] | None = None,
     ):
         """Initialize Azure extractor.
 
@@ -47,9 +48,11 @@ class AzureExtractor:
             domain_id: Domain identifier for loading default schema
             schema_path: Explicit path to schema file (overrides domain default)
             schema_dict: Ad-hoc schema dict (overrides both domain default and schema_path)
+            on_progress: Optional callback(message, detail) for intermediate progress
         """
         self.domain_id = domain_id
         self._schema_dict = None
+        self._on_progress = on_progress
 
         if schema_dict is not None:
             # Ensure required root-level properties for Azure CU API
@@ -95,6 +98,14 @@ class AzureExtractor:
 
         self._analyzer_ready = False
 
+    def _emit_progress(self, message: str, detail: str | None = None) -> None:
+        """Emit a progress event if callback is set."""
+        if self._on_progress:
+            try:
+                self._on_progress(message, detail)
+            except Exception as e:
+                logger.warning(f"Progress callback failed: {e}")
+
     async def extract(
         self, pdf_path: str, max_pages: int = 50
     ) -> tuple[ExtractionResult, dict[str, Any]]:
@@ -105,10 +116,14 @@ class AzureExtractor:
 
         # Ensure analyzer is ready (creates if needed)
         if not self._analyzer_ready:
+            self._emit_progress("Preparing document analyzer...")
             await self._ensure_analyzer_ready()
+            self._emit_progress("Analyzer ready", f"Analyzer: {self.analyzer_id}")
 
         # Analyze document directly with Azure CU
+        self._emit_progress("Analyzing document with Azure AI...")
         analysis_result = await asyncio.to_thread(self._analyze_document, pdf_path)
+        self._emit_progress("Extracting fields from analysis...")
 
         # Extract fields from the analysis result
         extracted_data, confidence_scores = self._extract_fields_from_result(
@@ -306,6 +321,7 @@ class DSPyExtractor:
         lm: dspy.LM,
         schema_path: str | Path | None = None,
         schema_dict: dict | None = None,
+        on_progress: Callable[[str, str | None], None] | None = None,
     ):
         """Initialize DSPy extractor.
 
@@ -314,9 +330,11 @@ class DSPyExtractor:
             lm: Configured DSPy language model
             schema_path: Explicit path to schema file (overrides domain default)
             schema_dict: Ad-hoc schema dict (overrides both domain default and schema_path)
+            on_progress: Optional callback(message, detail) for intermediate progress
         """
         self.domain_id = domain_id
         self.lm = lm
+        self._on_progress = on_progress
 
         if schema_dict is not None:
             # Ad-hoc schema: create model from dict directly
@@ -369,6 +387,13 @@ class DSPyExtractor:
             return result, {"error": "Empty document text"}
 
         logger.info(f"DSPy extractor: Processing {len(full_text)} characters")
+
+        # Emit progress
+        if self._on_progress:
+            try:
+                self._on_progress("Running LLM extraction...", f"{len(full_text):,} characters")
+            except Exception:
+                pass
 
         # Extract from the full document text
         try:

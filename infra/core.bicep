@@ -28,6 +28,18 @@ param azureOpenAIReasoningDeploymentName string
 param azureOpenAIApiVersion string
 param taskHubName string
 
+@description('Log Analytics workspace retention in days')
+param logAnalyticsRetentionDays int = 30
+
+@description('Storage account SKU name')
+param storageAccountSkuName string = 'Standard_LRS'
+
+@description('Maximum number of function app instances')
+param functionAppMaxInstances int = 100
+
+@description('Memory in MB per function app instance')
+param functionAppInstanceMemoryMB int = 2048
+
 // ── Log Analytics Workspace ─────────────────────────────────────────────────
 
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
@@ -38,7 +50,7 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
     sku: {
       name: 'PerGB2018'
     }
-    retentionInDays: 30
+    retentionInDays: logAnalyticsRetentionDays
   }
 }
 
@@ -63,7 +75,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   tags: tags
   kind: 'StorageV2'
   sku: {
-    name: 'Standard_LRS'
+    name: storageAccountSkuName
   }
   properties: {
     minimumTlsVersion: 'TLS1_2'
@@ -137,53 +149,53 @@ resource nspStorageAssociation 'Microsoft.Network/networkSecurityPerimeters/reso
 
 // ── RBAC: Function App → Storage (identity-based access) ────────────────────
 
-resource storageBlobDataOwner 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storageAccount.id, functionApp.id, 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b')
+var storageRoleDefinitionIds = [
+  'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'  // Storage Blob Data Owner
+  '17d1049b-9a84-46fb-8f53-869881c3d3ab'  // Storage Account Contributor
+  '974c5e8b-45b9-4653-ba55-5f855dd0fb88'  // Storage Queue Data Contributor
+  '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3'  // Storage Table Data Contributor
+  '69566ab7-960f-475b-8e7c-b3118f30c6bd'  // Storage File Data Privileged Contributor
+]
+
+resource storageRoleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for roleId in storageRoleDefinitionIds: {
+  name: guid(storageAccount.id, functionApp.id, roleId)
   scope: storageAccount
   properties: {
     principalId: functionApp.identity.principalId
     principalType: 'ServicePrincipal'
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b')
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleId)
+  }
+}]
+
+// ── Durable Task Scheduler ───────────────────────────────────────────────────
+
+resource durableTaskScheduler 'Microsoft.DurableTask/schedulers@2025-04-01-preview' = {
+  name: 'dts-${resourceToken}'
+  location: location
+  tags: tags
+  properties: {
+    sku: {
+      name: 'Dedicated'
+      capacity: 1
+    }
   }
 }
 
-resource storageAccountContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storageAccount.id, functionApp.id, '17d1049b-9a84-46fb-8f53-869881c3d3ab')
-  scope: storageAccount
-  properties: {
-    principalId: functionApp.identity.principalId
-    principalType: 'ServicePrincipal'
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '17d1049b-9a84-46fb-8f53-869881c3d3ab')
-  }
+resource durableTaskHub 'Microsoft.DurableTask/schedulers/taskHubs@2025-04-01-preview' = {
+  parent: durableTaskScheduler
+  name: taskHubName
+  properties: {}
 }
 
-resource storageQueueDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storageAccount.id, functionApp.id, '974c5e8b-45b9-4653-ba55-5f855dd0fb88')
-  scope: storageAccount
-  properties: {
-    principalId: functionApp.identity.principalId
-    principalType: 'ServicePrincipal'
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '974c5e8b-45b9-4653-ba55-5f855dd0fb88')
-  }
-}
+// ── RBAC: Function App → Durable Task Scheduler ────────────────────────────
 
-resource storageTableDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storageAccount.id, functionApp.id, '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')
-  scope: storageAccount
+resource durableTaskDataContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(durableTaskScheduler.id, functionApp.id, '0ad04412-c4d5-4796-b79c-f76d14c8d402')
+  scope: durableTaskScheduler
   properties: {
     principalId: functionApp.identity.principalId
     principalType: 'ServicePrincipal'
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')
-  }
-}
-
-resource storageFileDataPrivilegedContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storageAccount.id, functionApp.id, '69566ab7-960f-475b-8e7c-b3118f30c6bd')
-  scope: storageAccount
-  properties: {
-    principalId: functionApp.identity.principalId
-    principalType: 'ServicePrincipal'
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '69566ab7-960f-475b-8e7c-b3118f30c6bd')
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '0ad04412-c4d5-4796-b79c-f76d14c8d402')
   }
 }
 
@@ -229,8 +241,8 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
         }
       }
       scaleAndConcurrency: {
-        maximumInstanceCount: 100
-        instanceMemoryMB: 2048
+        maximumInstanceCount: functionAppMaxInstances
+        instanceMemoryMB: functionAppInstanceMemoryMB
       }
       runtime: {
         name: 'python'
@@ -244,6 +256,9 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
         { name: 'FUNCTIONS_EXTENSION_VERSION', value: '~4' }
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
         { name: 'TASKHUB_NAME', value: taskHubName }
+        { name: 'DurableTaskSchedulerConnection__endpoint', value: durableTaskScheduler.properties.endpoint }
+        { name: 'DurableTaskSchedulerConnection__taskHub', value: taskHubName }
+        { name: 'DurableTaskSchedulerConnection__authentication', value: 'ManagedIdentity' }
         { name: 'AzureSignalRConnectionString', value: azureSignalRConnectionString }
         { name: 'AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT', value: azureDocumentIntelligenceEndpoint }
         { name: 'AZURE_DOCUMENT_INTELLIGENCE_KEY', value: azureDocumentIntelligenceKey }
@@ -303,3 +318,4 @@ output staticWebAppId string = staticWebApp.id
 output staticWebAppName string = staticWebApp.name
 output staticWebAppUrl string = 'https://${staticWebApp.properties.defaultHostname}'
 output storageAccountName string = storageAccount.name
+output durableTaskSchedulerEndpoint string = durableTaskScheduler.properties.endpoint

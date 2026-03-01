@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Callable
 
 import dspy
 from pydantic import BaseModel, Field
@@ -90,6 +90,7 @@ class DocumentClassificationExecutor:
         categories_path: Path | None = None,
         categories: list[dict] | None = None,
         max_concurrent: int = DEFAULT_MAX_CONCURRENT_PAGES,
+        on_progress: "Callable[[int, int, str, float], None] | None" = None,
     ):
         """Initialize classifier.
 
@@ -98,9 +99,12 @@ class DocumentClassificationExecutor:
             categories_path: Path to classification_categories.json
             categories: Inline list of category dicts (overrides file path)
             max_concurrent: Max concurrent page classification tasks
+            on_progress: Optional callback(page_idx, total_pages, category, confidence)
+                         called after each page is classified.
         """
         self._max_concurrent = max_concurrent
         self.lm = lm
+        self._on_progress = on_progress
         self.classifier = DocumentClassifier(
             categories_json_path=categories_path,
             categories=categories,
@@ -133,6 +137,22 @@ class DocumentClassificationExecutor:
                 page_number=page_idx,
             )
 
+    async def _classify_page_with_progress(
+        self,
+        page_idx: int,
+        page_content: str,
+        semaphore: asyncio.Semaphore,
+        total_pages: int,
+    ) -> DocumentCategory:
+        """Classify a page and emit progress."""
+        result = await self._classify_page(page_idx, page_content, semaphore)
+        if self._on_progress:
+            try:
+                self._on_progress(page_idx, total_pages, result.category, result.confidence)
+            except Exception as e:
+                logger.warning(f"Progress callback failed: {e}")
+        return result
+
     async def classify(
         self,
         content: PDFContent,
@@ -155,7 +175,7 @@ class DocumentClassificationExecutor:
 
         # Create tasks for all pages
         tasks = [
-            self._classify_page(page_idx, page_content, semaphore)
+            self._classify_page_with_progress(page_idx, page_content, semaphore, len(pages_to_process))
             for page_idx, page_content in enumerate(pages_to_process)
         ]
 

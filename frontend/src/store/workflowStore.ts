@@ -10,6 +10,7 @@ import {
   HITLWaitingData,
   FieldComparison,
   ExtractionSchema,
+  StepProgressData,
 } from '@/types';
 
 // Enable Immer's MapSet plugin for Map/Set support
@@ -30,6 +31,9 @@ interface WorkflowState {
   // UI state
   selectedStep: StepName | null;
 
+  // Step progress (intermediate updates from activities)
+  stepProgress: Map<StepName, StepProgressData>;
+
   // HITL state
   hitlWaiting: HITLWaitingData | null;
   hitlStatus: 'waiting' | 'approved' | 'rejected' | null;
@@ -41,6 +45,7 @@ interface WorkflowState {
   updateStep: (stepName: StepName, updates: Partial<Step>) => void;
   setCurrentStep: (stepNumber: number) => void;
   selectStep: (stepName: StepName | null) => void;
+  setStepProgress: (data: StepProgressData) => void;
   setHITLWaiting: (data: HITLWaitingData) => void;
   setHITLApproved: (feedback?: string) => void;
   setHITLRejected: (feedback?: string) => void;
@@ -58,6 +63,7 @@ const initialState = {
   llmModel: null,
   customSchema: null,
   selectedStep: null,
+  stepProgress: new Map<StepName, StepProgressData>(),
   hitlWaiting: null,
   hitlStatus: null,
   hitlFeedback: null,
@@ -112,6 +118,12 @@ export const useWorkflowStore = create<WorkflowState>()(
     selectStep: (stepName: StepName | null) => {
       set((state) => {
         state.selectedStep = stepName;
+      });
+    },
+
+    setStepProgress: (data: StepProgressData) => {
+      set((state) => {
+        state.stepProgress.set(data.stepName, data);
       });
     },
 

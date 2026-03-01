@@ -5,7 +5,7 @@ import logging
 import re
 import time
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Callable
 
 from pydantic import BaseModel, Field
 
@@ -79,6 +79,7 @@ class ToolContext:
         comparison_result: dict[str, Any],
         human_approved: bool,
         human_feedback: str,
+        on_tool_event: "Callable[[str, str, str, dict | None], None] | None" = None,
     ):
         self.domain_id = domain_id
         self.azure_data = azure_data
@@ -88,6 +89,37 @@ class ToolContext:
         self.human_feedback = human_feedback
         self.validation_rules = self._load_rules()
         self.consolidated = {}
+        self._on_tool_event = on_tool_event
+
+    def emit_tool_call(
+        self,
+        tool_name: str,
+        description: str,
+        params: dict | None = None,
+    ) -> None:
+        """Emit a tool_call event for real-time display."""
+        if self._on_tool_event:
+            self._on_tool_event(
+                "tool_call",
+                tool_name,
+                description,
+                params,
+            )
+
+    def emit_tool_result(
+        self,
+        tool_name: str,
+        summary: str,
+        result_data: dict | None = None,
+    ) -> None:
+        """Emit a tool_result event for real-time display."""
+        if self._on_tool_event:
+            self._on_tool_event(
+                "tool_result",
+                tool_name,
+                summary,
+                result_data,
+            )
 
     def _load_rules(self) -> list[dict]:
         """Load validation rules from domain directory."""
@@ -135,6 +167,7 @@ def get_validation_rules() -> dict[str, Any]:
     """
     ctx = get_tool_context()
     logger.info(f"🔧 [TOOL CALLED] get_validation_rules(domain={ctx.domain_id})")
+    ctx.emit_tool_call("get_validation_rules", f"Loading validation rules for {ctx.domain_id}", {"domain": ctx.domain_id})
 
     rules = ctx.validation_rules
     result = {
@@ -151,6 +184,7 @@ def get_validation_rules() -> dict[str, Any]:
         ],
     }
     logger.info(f"✓ [TOOL RESULT] Found {len(rules)} validation rules")
+    ctx.emit_tool_result("get_validation_rules", f"Found {len(rules)} validation rules", {"ruleCount": len(rules)})
     return result
 
 
@@ -168,6 +202,7 @@ def run_validation_check(
     logger.info(
         f"🔧 [TOOL CALLED] run_validation_check(field={field_name}, value={field_value})"
     )
+    ctx.emit_tool_call("run_validation_check", f"Validating {field_name}", {"field": field_name, "value": str(field_value)[:50]})
 
     results = []
 
@@ -237,6 +272,8 @@ def run_validation_check(
         ),
     }
     logger.info(f"✓ [TOOL RESULT] {len(results)} validations run")
+    passed = sum(1 for r in (results or []) if r.get("passed", True))
+    ctx.emit_tool_result("run_validation_check", f"{field_name}: {len(results)} checks, {passed} passed", {"field": field_name, "checks": len(results), "passed": passed})
     return result
 
 
@@ -248,6 +285,7 @@ def get_azure_extraction() -> dict[str, Any]:
     """
     ctx = get_tool_context()
     logger.info("🔧 [TOOL CALLED] get_azure_extraction()")
+    ctx.emit_tool_call("get_azure_extraction", "Retrieving Azure CU extraction results")
 
     result = {
         "source": "Azure Content Understanding",
@@ -255,6 +293,7 @@ def get_azure_extraction() -> dict[str, Any]:
         "fields": ctx.azure_data,
     }
     logger.info(f"✓ [TOOL RESULT] Retrieved {len(ctx.azure_data)} fields")
+    ctx.emit_tool_result("get_azure_extraction", f"Retrieved {len(ctx.azure_data)} fields", {"fieldCount": len(ctx.azure_data)})
     return result
 
 
@@ -266,6 +305,7 @@ def get_dspy_extraction() -> dict[str, Any]:
     """
     ctx = get_tool_context()
     logger.info("🔧 [TOOL CALLED] get_dspy_extraction()")
+    ctx.emit_tool_call("get_dspy_extraction", "Retrieving DSPy LLM extraction results")
 
     result = {
         "source": "DSPy LLM Extraction",
@@ -273,6 +313,7 @@ def get_dspy_extraction() -> dict[str, Any]:
         "fields": ctx.dspy_data,
     }
     logger.info(f"✓ [TOOL RESULT] Retrieved {len(ctx.dspy_data)} fields")
+    ctx.emit_tool_result("get_dspy_extraction", f"Retrieved {len(ctx.dspy_data)} fields", {"fieldCount": len(ctx.dspy_data)})
     return result
 
 
@@ -284,6 +325,7 @@ def get_comparison_analysis() -> dict[str, Any]:
     """
     ctx = get_tool_context()
     logger.info("🔧 [TOOL CALLED] get_comparison_analysis()")
+    ctx.emit_tool_call("get_comparison_analysis", "Comparing Azure vs DSPy results")
 
     result = {
         "total_fields": ctx.comparison_result.get("total_fields", 0),
@@ -296,6 +338,7 @@ def get_comparison_analysis() -> dict[str, Any]:
     logger.info(
         f"✓ [TOOL RESULT] {result['matching_fields']}/{result['total_fields']} fields match"
     )
+    ctx.emit_tool_result("get_comparison_analysis", f"{result['matching_fields']}/{result['total_fields']} fields match ({result['match_percentage']}%)", {"matching": result['matching_fields'], "total": result['total_fields'], "percentage": result['match_percentage']})
     return result
 
 
@@ -307,6 +350,7 @@ def get_human_review_status() -> dict[str, Any]:
     """
     ctx = get_tool_context()
     logger.info("🔧 [TOOL CALLED] get_human_review_status()")
+    ctx.emit_tool_call("get_human_review_status", "Checking human review decision")
 
     result = {
         "approved": ctx.human_approved,
@@ -314,6 +358,7 @@ def get_human_review_status() -> dict[str, Any]:
         "review_completed": True,
     }
     logger.info(f"✓ [TOOL RESULT] Human approved: {ctx.human_approved}")
+    ctx.emit_tool_result("get_human_review_status", f"Human {'approved' if ctx.human_approved else 'rejected'}", {"approved": ctx.human_approved})
     return result
 
 
@@ -341,6 +386,7 @@ def consolidate_field_value(
     logger.info(
         f"🔧 [TOOL CALLED] consolidate_field_value(field={field_name}, value={recommended_value}, source={source})"
     )
+    ctx.emit_tool_call("consolidate_field_value", f"Consolidating {field_name}", {"field": field_name, "source": source, "confidence": confidence})
 
     ctx.consolidated[field_name] = {
         "value": recommended_value,
@@ -356,6 +402,7 @@ def consolidate_field_value(
         "stored": True,
     }
     logger.info(f"✓ [TOOL RESULT] Consolidated {field_name}")
+    ctx.emit_tool_result("consolidate_field_value", f"Consolidated {field_name} (source: {source})", {"field": field_name, "value": str(recommended_value)[:50], "source": source})
     return result
 
 
@@ -369,9 +416,11 @@ def get_policy_guidelines(
     Get policy guidelines for processing this type of document.
     This simulates accessing a policy/rules management system.
     """
+    ctx = get_tool_context()
     logger.info(
         f"🔧 [TOOL CALLED] get_policy_guidelines(document_type={document_type})"
     )
+    ctx.emit_tool_call("get_policy_guidelines", f"Loading policy for {document_type}", {"documentType": document_type})
 
     # Simulated policy guidelines based on document type
     guidelines = {
@@ -419,6 +468,7 @@ def get_policy_guidelines(
     result["document_type"] = document_type
 
     logger.info(f"✓ [TOOL RESULT] Retrieved policy for {document_type}")
+    ctx.emit_tool_result("get_policy_guidelines", f"Retrieved policy for {document_type}", {"documentType": document_type})
     return result
 
 
@@ -461,15 +511,25 @@ When you have gathered all information, provide:
 class AgentReasoningEngine:
     """AI Foundry Agent-based reasoning engine with tools."""
 
-    def __init__(self, domain_id: str, instance_id: str | None = None):
+    def __init__(
+        self,
+        domain_id: str,
+        instance_id: str | None = None,
+        on_chunk: "Callable[[str, str, dict | None], None] | None" = None,
+    ):
         """Initialize the reasoning agent with tools.
 
         Args:
             domain_id: Domain identifier for rules loading
             instance_id: Workflow instance ID for streaming support
+            on_chunk: Optional callback(chunk_type, content, metadata) for
+                      real-time SignalR delivery.  When *None* the engine
+                      falls back to debug logging only.
         """
         self.domain_id = domain_id
         self.instance_id = instance_id
+        self._on_chunk = on_chunk
+        self._chunk_index = 0
         self.chat_client = AzureOpenAIChatClient(
             api_key=AZURE_OPENAI_KEY,
             endpoint=AZURE_OPENAI_ENDPOINT,
@@ -533,6 +593,16 @@ class AgentReasoningEngine:
         )
 
         # Set up tool context with human-accepted values
+        # Build a tool-event callback that emits tool_call/tool_result chunks
+        def _on_tool_event(
+            event_type: str, tool_name: str, description: str, data: dict | None = None
+        ) -> None:
+            self._emit_chunk(
+                event_type,  # "tool_call" or "tool_result"
+                description,
+                {"toolName": tool_name, **(data or {})},
+            )
+
         context = ToolContext(
             domain_id=self.domain_id,
             azure_data=azure_data,
@@ -540,6 +610,7 @@ class AgentReasoningEngine:
             comparison_result=comparison_result,
             human_approved=human_approved,
             human_feedback=human_feedback,
+            on_tool_event=_on_tool_event,
         )
         # Pre-populate consolidated with human-accepted values
         context.consolidated = {
@@ -547,11 +618,6 @@ class AgentReasoningEngine:
             for k, v in pre_consolidated.items()
         }
         set_tool_context(context)
-
-        # Emit streaming chunk: Starting
-        self._emit_chunk(
-            "system", f"Starting reasoning analysis for {document_type} document..."
-        )
 
         # Prepare the prompt for the agent
         has_accepted = bool(accepted_values)
@@ -576,9 +642,6 @@ Please use the available tools to:
 Then provide a comprehensive summary with your findings and recommendations."""
 
         try:
-            # Emit streaming chunk: Prompt
-            self._emit_chunk("user", f"Analyzing {document_type}...")
-
             # Run the agent with real-time streaming
             ai_summary_parts = []
             chunk_count = 0
@@ -588,13 +651,14 @@ Then provide a comprehensive summary with your findings and recommendations."""
                 if update.text:
                     ai_summary_parts.append(update.text)
                     chunk_count += 1
-                    # Emit chunk with metadata for streaming progress
+                    # Send as "summary" type so the frontend renders it in
+                    # the summary card, progressively growing.
                     self._emit_chunk(
-                        "llm_stream",
-                        update.text,
+                        "summary",
+                        "".join(ai_summary_parts),
                         {
-                            "chunkIndex": chunk_count,
                             "isStreaming": True,
+                            "streamChunk": chunk_count,
                             "totalLength": sum(len(p) for p in ai_summary_parts),
                         },
                     )
@@ -629,12 +693,43 @@ Then provide a comprehensive summary with your findings and recommendations."""
                 len(passed), len(failed), human_approved, comparison_result
             )
 
-            # Extract and stream recommendations in real-time
-            recommendations = self._extract_recommendations_streaming(ai_summary)
+            # Extract recommendations (no streaming needed here — they come
+            # from parsing the already-streamed AI summary text).
+            recommendations = self._extract_recommendations(ai_summary)
 
-            # Emit streaming chunk: Validation results
+            # ── Emit structured summary chunks ──
+            # These use the chunk types the frontend already knows how to render.
+
+            # Validation summary
             self._emit_chunk(
-                "validation", f"Validations: {len(passed)} passed, {len(failed)} failed"
+                "validation_summary",
+                f"✓ Validation Results: {len(passed)}/{len(validation_results)} passed",
+                {
+                    "passed": len(passed),
+                    "total": len(validation_results),
+                },
+            )
+
+            # Field matching
+            total_fields = comparison_result.get("total_fields", 0)
+            matching_fields = comparison_result.get("matching_fields", 0)
+            if total_fields > 0:
+                matching_pct = (matching_fields / total_fields) * 100
+                self._emit_chunk(
+                    "field_matching",
+                    f"📊 Field Matching: {matching_fields}/{total_fields} fields match ({matching_pct:.1f}%)",
+                    {
+                        "matching": matching_fields,
+                        "total": total_fields,
+                        "percentage": matching_pct,
+                    },
+                )
+
+            # Confidence
+            self._emit_chunk(
+                "confidence",
+                f"🎯 Confidence Score: {confidence:.2%}",
+                {"score": confidence},
             )
 
         except Exception as e:
@@ -655,8 +750,12 @@ Then provide a comprehensive summary with your findings and recommendations."""
 
         processing_time_ms = (time.time() - start_time) * 1000
 
-        # Emit final streaming chunk
-        self._emit_chunk("final", f"Analysis complete. Confidence: {confidence:.0%}")
+        # Emit final streaming chunk (tells frontend streaming is done)
+        self._emit_chunk(
+            "final",
+            "✅ Reasoning analysis complete",
+            {"is_final": True},
+        )
 
         return ReasoningSummary(
             document_type=document_type,
@@ -681,13 +780,25 @@ Then provide a comprehensive summary with your findings and recommendations."""
     ) -> None:
         """Emit a reasoning chunk for real-time display.
 
-        For real-time updates, SignalR broadcasts are handled by the orchestration.
+        If an *on_chunk* callback was supplied (typically backed by the
+        SignalR REST client), the chunk is pushed to the frontend
+        immediately.  Otherwise we just debug-log.
 
         Args:
-            chunk_type: Type of chunk (system, user, assistant, tool_call, validation, error, final)
+            chunk_type: Type of chunk (system, user, assistant, tool_call,
+                        validation, error, final)
             content: The content to display
             metadata: Optional additional metadata
         """
+        meta = {**(metadata or {}), "chunkIndex": self._chunk_index}
+        self._chunk_index += 1
+
+        if self._on_chunk is not None:
+            try:
+                self._on_chunk(chunk_type, content, meta)
+            except Exception as exc:
+                logger.warning(f"on_chunk callback failed: {exc}")
+
         logger.debug(f"Reasoning chunk [{chunk_type}]: {content[:80]}...")
 
     def _run_all_validations(self, context: ToolContext) -> list[ValidationResult]:
