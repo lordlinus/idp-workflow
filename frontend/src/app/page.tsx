@@ -28,7 +28,7 @@ export default function Page() {
     setTimeout(() => {
       setIsTransitioning(false);
       setCurrentPage('execution');
-    }, 300);
+    }, 500);
   };
 
   const handleReset = () => {
@@ -80,18 +80,16 @@ export default function Page() {
         {isTransitioning ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center animate-fade-in">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-xl shadow-blue-500/20">
-                <svg className="w-8 h-8 text-white animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-xl shadow-emerald-500/20">
+                <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
               </div>
-              <p className="text-xl font-bold text-dark-50 mb-2">Initializing Workflow</p>
-              <p className="text-sm text-dark-400">Connecting to AI pipeline...</p>
-              <div className="mt-5 flex justify-center">
-                <div className="h-1 w-40 bg-dark-700 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500 rounded-full animate-shimmer"
-                    style={{ backgroundSize: '200% 100%', width: '100%' }}
-                  />
+              <p className="text-lg font-semibold text-dark-50 mb-1">Launching Pipeline</p>
+              <p className="text-sm text-dark-400">Preparing your workflow view...</p>
+              <div className="mt-4 flex justify-center">
+                <div className="h-1 w-32 bg-dark-700 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full animate-progress-fill" />
                 </div>
               </div>
             </div>

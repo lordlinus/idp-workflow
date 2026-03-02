@@ -135,6 +135,8 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
   const [schemaValid, setSchemaValid] = React.useState<boolean | null>(null);
   const [useCustomCategories, setUseCustomCategories] = React.useState(false);
   const [categoriesJson, setCategoriesJson] = React.useState('');
+  const [transitionPhase, setTransitionPhase] = React.useState<'idle' | 'uploading' | 'starting' | 'connecting' | 'ready'>('idle');
+  const [transitionFileName, setTransitionFileName] = React.useState<string>('');
 
   const uploadPDF = useUploadPDF();
   const startWorkflow = useStartWorkflow();
@@ -215,13 +217,16 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
 
   const startWorkflowWithBlob = async (blobPath: string, domainId: DomainId, fileName: string) => {
     try {
-      setToast({ message: 'Starting workflow...', type: 'info' });
+      setTransitionPhase('starting');
 
       // Connect SignalR FIRST (before starting workflow to minimize race window)
       // User-targeted messaging: no subscribe needed — the negotiate binds userId
       if (!signalR.isConnected()) {
+        setTransitionPhase('connecting');
         await signalR.connect();
       }
+
+      setTransitionPhase('starting');
 
       // Start workflow
       const advancedOptions = buildWorkflowOptions();
@@ -243,10 +248,13 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
       // Store instanceId in cookie for history
       document.cookie = `lastInstanceId=${workflowResponse.instanceId}; path=/; max-age=2592000`;
 
-      setToast({ message: 'Workflow started successfully!', type: 'success' });
+      setTransitionPhase('ready');
+      // Brief pause to show the "ready" state before transitioning
+      await new Promise(resolve => setTimeout(resolve, 600));
       onWorkflowStart(workflowResponse.instanceId);
     } catch (error) {
       console.error('Error starting workflow:', error);
+      setTransitionPhase('idle');
       setToast({
         message: error instanceof Error ? error.message : 'Failed to start workflow',
         type: 'error',
@@ -262,12 +270,14 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
 
     try {
       // Upload PDF
-      setToast({ message: 'Uploading PDF...', type: 'info' });
+      setTransitionPhase('uploading');
+      setTransitionFileName(file.name);
       const uploadedFile = await uploadPDF.mutateAsync(file);
 
       await startWorkflowWithBlob(uploadedFile.blobPath, selectedDomain, uploadedFile.fileName);
     } catch (error) {
       console.error('Error uploading file:', error);
+      setTransitionPhase('idle');
       setToast({
         message: error instanceof Error ? error.message : 'Failed to upload file',
         type: 'error',
@@ -277,12 +287,14 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
 
   const handleUseDemo = async () => {
     try {
-      setToast({ message: `Loading demo document for ${DOMAIN_CONFIG[selectedDomain].label}...`, type: 'info' });
+      setTransitionPhase('uploading');
+      setTransitionFileName(`${DOMAIN_CONFIG[selectedDomain].label} demo document`);
       const demoResult = await demoDocument.mutateAsync(selectedDomain);
 
       await startWorkflowWithBlob(demoResult.blobPath, selectedDomain, demoResult.fileName);
     } catch (error) {
       console.error('Error using demo document:', error);
+      setTransitionPhase('idle');
       setToast({
         message: error instanceof Error ? error.message : 'Failed to load demo document',
         type: 'error',
@@ -317,6 +329,110 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
   };
 
   const isLoading = uploadPDF.isPending || startWorkflow.isPending || demoDocument.isPending;
+
+  // --- Inline phased transition card ---
+  if (transitionPhase !== 'idle') {
+    const phases = [
+      { key: 'uploading', label: 'Uploading document', icon: 'upload' },
+      { key: 'connecting', label: 'Connecting to pipeline', icon: 'link' },
+      { key: 'starting', label: 'Starting workflow', icon: 'play' },
+      { key: 'ready', label: 'Launching pipeline', icon: 'check' },
+    ] as const;
+
+    const phaseOrder = ['uploading', 'connecting', 'starting', 'ready'] as const;
+    const currentIdx = phaseOrder.indexOf(transitionPhase);
+    const progressPercent = ((currentIdx + 1) / phaseOrder.length) * 100;
+
+    const phaseIcon = (phase: typeof phases[number], status: 'done' | 'active' | 'pending') => {
+      if (status === 'done') {
+        return (
+          <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
+            <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+        );
+      }
+      if (status === 'active') {
+        return (
+          <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center">
+            <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+          </div>
+        );
+      }
+      return (
+        <div className="w-8 h-8 rounded-full bg-dark-700/50 border border-dark-600/40 flex items-center justify-center">
+          <div className="w-2 h-2 rounded-full bg-dark-500" />
+        </div>
+      );
+    };
+
+    return (
+      <div className="space-y-6 animate-fade-in">
+        {/* File info */}
+        <div className="flex items-center gap-3 rounded-xl bg-dark-800/60 border border-dark-700/50 px-5 py-4">
+          <div className="w-10 h-10 rounded-lg bg-red-500/15 border border-red-500/25 flex items-center justify-center flex-shrink-0">
+            <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+            </svg>
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-dark-100 truncate">{transitionFileName}</p>
+            <p className="text-xs text-dark-500">{DOMAIN_CONFIG[selectedDomain].label} pipeline</p>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="rounded-xl bg-dark-800/60 border border-dark-700/50 p-6">
+          <div className="mb-6">
+            <div className="h-1.5 w-full bg-dark-700 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-700 ease-out"
+                style={{
+                  width: `${progressPercent}%`,
+                  background: transitionPhase === 'ready'
+                    ? 'linear-gradient(to right, #10B981, #34D399)'
+                    : 'linear-gradient(to right, #3B82F6, #8B5CF6)',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Phase checklist */}
+          <div className="space-y-4">
+            {phases.map((phase, idx) => {
+              const status: 'done' | 'active' | 'pending' =
+                idx < currentIdx ? 'done' :
+                idx === currentIdx ? 'active' : 'pending';
+
+              return (
+                <div key={phase.key} className="flex items-center gap-3">
+                  {phaseIcon(phase, status)}
+                  <span className={clsx(
+                    'text-sm font-medium transition-colors duration-300',
+                    status === 'done' && 'text-emerald-400',
+                    status === 'active' && 'text-dark-100',
+                    status === 'pending' && 'text-dark-500',
+                  )}>
+                    {phase.label}
+                    {status === 'active' && <span className="text-dark-400 ml-1">...</span>}
+                    {status === 'done' && <span className="text-emerald-500/60 ml-1.5 text-xs">done</span>}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Ready message */}
+        {transitionPhase === 'ready' && (
+          <div className="text-center animate-fade-in">
+            <p className="text-sm text-emerald-400 font-medium">Workflow started — opening pipeline view</p>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -628,24 +744,6 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
           <p className="text-xs text-dark-500">Supported format: PDF</p>
         </div>
       </div>
-
-      {/* Loading State */}
-      {isLoading && (
-        <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 p-4">
-          <div className="flex items-center gap-3">
-            <div className="animate-spin">
-              <div className="h-4 w-4 border-2 border-blue-400 border-t-transparent rounded-full"></div>
-            </div>
-            <span className="text-sm text-blue-300">
-              {demoDocument.isPending
-                ? 'Loading demo document...'
-                : uploadPDF.isPending
-                  ? 'Uploading file...'
-                  : 'Starting workflow...'}
-            </span>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

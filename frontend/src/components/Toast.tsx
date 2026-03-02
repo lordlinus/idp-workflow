@@ -34,14 +34,23 @@ export function Toast({ message, type, onClose }: ToastProps) {
   return (
     <div
       className={clsx(
-        'fixed bottom-6 right-6 flex items-center gap-3 rounded-lg border px-4 py-3 backdrop-blur-sm animate-slide-in',
+        'fixed top-4 left-1/2 z-50 flex items-center gap-3 rounded-xl border px-5 py-3 shadow-lg backdrop-blur-md animate-slide-down',
         bgColors[type],
         textColors[type]
       )}
       role="alert"
     >
-      <span className="text-xl">{icons[type]}</span>
-      <p className="font-medium">{message}</p>
+      <span className="text-lg">{icons[type]}</span>
+      <p className="text-sm font-medium">{message}</p>
+      <button
+        onClick={onClose}
+        className="ml-2 text-dark-400 hover:text-dark-200 transition-colors"
+        aria-label="Dismiss"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
     </div>
   );
 }

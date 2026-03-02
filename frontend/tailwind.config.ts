@@ -32,11 +32,13 @@ const config: Config = {
       animation: {
         'pulse-glow': 'pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'slide-in': 'slideIn 0.3s ease-out',
+        'slide-down': 'slideDown 0.35s ease-out',
         'fade-in': 'fadeIn 0.3s ease-out',
         'flow-dash': 'flowDash 1.5s linear infinite',
         'scale-in': 'scaleIn 0.2s ease-out',
         'glow-ring': 'glowRing 2s ease-in-out infinite',
         'shimmer': 'shimmer 2s linear infinite',
+        'progress-fill': 'progressFill 0.6s ease-out forwards',
       },
       keyframes: {
         slideIn: {
@@ -66,6 +68,14 @@ const config: Config = {
         shimmer: {
           '0%': { backgroundPosition: '-200% 0' },
           '100%': { backgroundPosition: '200% 0' },
+        },
+        slideDown: {
+          '0%': { transform: 'translateX(-50%) translateY(-100%)', opacity: '0' },
+          '100%': { transform: 'translateX(-50%) translateY(0)', opacity: '1' },
+        },
+        progressFill: {
+          '0%': { width: '0%' },
+          '100%': { width: '100%' },
         },
       },
       backgroundImage: {
