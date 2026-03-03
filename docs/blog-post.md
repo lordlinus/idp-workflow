@@ -5,8 +5,6 @@
 
 **[GitHub Repository →](https://github.com/lordlinus/idp-workflow)**
 
-> *This project was featured in the **Microsoft ASEAN AI Use Case Video Series** as a reference architecture for intelligent document processing.*
-
 ---
 
 ## The Problem
