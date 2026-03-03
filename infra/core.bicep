@@ -334,6 +334,10 @@ resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
 }
 
 // Link Function App as backend API ("Bring your own API")
+// All /api/* requests are proxied through SWA to the Function App.
+// Note: SignalR negotiate is called directly on the Function App (not through
+// this proxy) because SWA intercepts "negotiate" routes with its own auth
+// provider which SignalR Service doesn't support.
 resource swaLinkedBackend 'Microsoft.Web/staticSites/linkedBackends@2023-12-01' = {
   parent: staticWebApp
   name: 'backend'

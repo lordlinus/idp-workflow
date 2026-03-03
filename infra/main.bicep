@@ -124,6 +124,5 @@ output SERVICE_FRONTEND_NAME string = core.outputs.staticWebAppName
 
 output STATIC_WEB_APP_URL string = core.outputs.staticWebAppUrl
 output FUNCTION_APP_URL string = core.outputs.functionAppUrl
-output NEXT_PUBLIC_API_BASE_URL string = core.outputs.functionAppUrl
 output AZURE_STORAGE_ACCOUNT_NAME string = core.outputs.storageAccountName
 output DURABLE_TASK_SCHEDULER_ENDPOINT string = core.outputs.durableTaskSchedulerEndpoint

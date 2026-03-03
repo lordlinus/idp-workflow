@@ -30,5 +30,17 @@ services:
     hooks:
       prebuild:
         shell: sh
-        run: npm install
+        run: |
+          # Write the direct Function App URL for SignalR negotiate.
+          # SWA's linked-backend proxy intercepts "negotiate" routes with its
+          # own auth provider, so the negotiate call must bypass the proxy.
+          # All other API calls continue through SWA's /api proxy as normal.
+          FUNC_URL=$(azd env get-value FUNCTION_APP_URL 2>/dev/null || echo "")
+          if [ -n "$FUNC_URL" ]; then
+            echo "NEXT_PUBLIC_FUNCTION_APP_URL=$FUNC_URL" > .env.local
+            echo "==> Set NEXT_PUBLIC_FUNCTION_APP_URL=$FUNC_URL"
+          else
+            echo "==> FUNCTION_APP_URL not found in azd env, negotiate will use /api (local dev)"
+          fi
+          npm install
 
