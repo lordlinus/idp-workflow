@@ -2,6 +2,8 @@
 
 import React from 'react';
 import { useWorkflowStore } from '@/store/workflowStore';
+import { useEventsStore } from '@/store/eventsStore';
+import { useReasoningStore } from '@/store/reasoningStore';
 import { useUIStore } from '@/store/uiStore';
 import { Toast } from '@/components/Toast';
 import { ConnectionIndicator } from '@/components/ConnectionIndicator';
@@ -20,6 +22,9 @@ export default function Page() {
   const toast = useUIStore((state) => state.toast);
   const clearToast = useUIStore((state) => state.clearToast);
   const reset = useWorkflowStore((state) => state.reset);
+  const clearEvents = useEventsStore((state) => state.clearEvents);
+  const clearChunks = useReasoningStore((state) => state.clearChunks);
+  const setShowHITLModal = useUIStore((state) => state.setShowHITLModal);
 
   const handleWorkflowStart = (id: string) => {
     const now = new Date().toISOString();
@@ -33,6 +38,9 @@ export default function Page() {
 
   const handleReset = () => {
     reset();
+    clearEvents();
+    clearChunks();
+    setShowHITLModal(false);
     setCurrentPage('upload');
   };
 

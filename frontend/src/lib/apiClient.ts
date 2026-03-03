@@ -110,6 +110,16 @@ class APIClient {
   }
 
   /**
+   * Terminate a running workflow orchestration.
+   * Used before starting a new workflow to prevent stale events.
+   */
+  async terminateWorkflow(instanceId: string, reason?: string): Promise<void> {
+    await this.client.post(`/idp/workflow/${instanceId}/terminate`, {
+      reason: reason || 'New workflow started by user',
+    });
+  }
+
+  /**
    * Get domain configuration including extraction schema
    */
   async getDomainConfig(domainId: DomainId): Promise<Record<string, unknown>> {

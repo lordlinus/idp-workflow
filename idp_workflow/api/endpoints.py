@@ -424,6 +424,70 @@ def register_http_endpoints(app):
                 mimetype="application/json",
             )
 
+    @app.route(route="idp/workflow/{instanceId}/terminate", methods=["POST"])
+    @app.durable_client_input(client_name="client")
+    async def http_terminate_workflow(
+        req: func.HttpRequest,
+        client: DurableOrchestrationClient,
+    ) -> func.HttpResponse:
+        """Terminate a running workflow orchestration."""
+        instance_id = req.route_params.get("instanceId")
+        if not instance_id:
+            return func.HttpResponse(
+                body=json.dumps({"error": "Missing instanceId"}),
+                status_code=400,
+                mimetype="application/json",
+            )
+
+        try:
+            status = await client.get_status(instance_id, show_input=False)
+            if not status or not status.instance_id:
+                return func.HttpResponse(
+                    body=json.dumps({"error": "Workflow not found"}),
+                    status_code=404,
+                    mimetype="application/json",
+                )
+
+            runtime_status = str(status.runtime_status)
+            if runtime_status in ("Completed", "Failed", "Terminated"):
+                return func.HttpResponse(
+                    body=json.dumps({
+                        "message": f"Workflow already {runtime_status.lower()}",
+                        "instanceId": instance_id,
+                        "runtimeStatus": runtime_status,
+                    }),
+                    status_code=200,
+                    mimetype="application/json",
+                )
+
+            reason = "Terminated by user"
+            try:
+                body = req.get_json()
+                reason = body.get("reason", reason)
+            except ValueError:
+                pass
+
+            await client.terminate(instance_id, reason)
+            logger.info(f"Workflow {instance_id} terminated: {reason}")
+
+            return func.HttpResponse(
+                body=json.dumps({
+                    "message": "Workflow terminated",
+                    "instanceId": instance_id,
+                    "reason": reason,
+                }),
+                status_code=200,
+                mimetype="application/json",
+            )
+
+        except Exception as e:
+            logger.error(f"Error terminating workflow {instance_id}: {e}")
+            return func.HttpResponse(
+                body=json.dumps({"error": f"Failed to terminate: {str(e)}"}),
+                status_code=500,
+                mimetype="application/json",
+            )
+
     @app.route(route="idp/start", methods=["POST"])
     @app.durable_client_input(client_name="client")
     async def http_start_workflow(

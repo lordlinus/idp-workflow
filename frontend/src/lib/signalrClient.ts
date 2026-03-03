@@ -80,12 +80,20 @@ class SignalRClient {
   private attachEventHandlers(): void {
     if (!this.connection) return;
 
-    // User-targeted messaging: all messages received are already for this user,
-    // no need to filter by instanceId.
+    // All messages are user-targeted, but we must still filter by instanceId
+    // to prevent events from old/cancelled orchestrations leaking into the
+    // current workflow session.
+    const isCurrentInstance = (eventInstanceId: string): boolean => {
+      const currentId = useWorkflowStore.getState().instanceId;
+      if (!currentId || eventInstanceId === currentId) return true;
+      console.debug(`Dropping stale event for instance ${eventInstanceId} (current: ${currentId})`);
+      return false;
+    };
 
     // Step Started
     this.connection.on('stepStarted', (arg: { data: StepStartedData; timestamp: string; instanceId: string }) => {
       console.log('stepStarted received:', arg);
+      if (!isCurrentInstance(arg.instanceId)) return;
       const { data, timestamp } = arg;
       useWorkflowStore.getState().updateStep(data.stepName as StepName, {
         status: 'running' as StepStatus,
@@ -103,6 +111,7 @@ class SignalRClient {
     // Step Completed
     this.connection.on('stepCompleted', (arg: { data: StepCompletedData; timestamp: string; instanceId: string }) => {
       console.log('stepCompleted received:', arg);
+      if (!isCurrentInstance(arg.instanceId)) return;
       const { data, timestamp } = arg;
       useWorkflowStore.getState().updateStep(data.stepName as StepName, {
         status: 'completed' as StepStatus,
@@ -116,6 +125,7 @@ class SignalRClient {
     // Step Failed
     this.connection.on('stepFailed', (arg: { data: StepFailedData; timestamp: string; instanceId: string }) => {
       console.log('stepFailed received:', arg);
+      if (!isCurrentInstance(arg.instanceId)) return;
       const { data, timestamp } = arg;
       useWorkflowStore.getState().updateStep(data.stepName as StepName, {
         status: 'failed' as StepStatus,
@@ -132,6 +142,7 @@ class SignalRClient {
     // Step Progress (intermediate updates from within activities)
     this.connection.on('stepProgress', (arg: { data: StepProgressData; timestamp: string; instanceId: string }) => {
       console.log('stepProgress received:', arg);
+      if (!isCurrentInstance(arg.instanceId)) return;
       const { data, timestamp } = arg;
       useWorkflowStore.getState().setStepProgress(data);
       useEventsStore.getState().addEvent('stepProgress', data, timestamp);
@@ -140,6 +151,7 @@ class SignalRClient {
     // HITL Waiting
     this.connection.on('hitlWaiting', (arg: { data: HITLWaitingData; timestamp: string; instanceId: string }) => {
       console.log('hitlWaiting received:', arg);
+      if (!isCurrentInstance(arg.instanceId)) return;
       const { data, timestamp } = arg;
       useWorkflowStore.getState().setHITLWaiting(data);
       useUIStore.getState().setShowHITLModal(true);
@@ -149,6 +161,7 @@ class SignalRClient {
     // HITL Approved
     this.connection.on('hitlApproved', (arg: { data: HITLApprovedData; timestamp: string; instanceId: string }) => {
       console.log('hitlApproved received:', arg);
+      if (!isCurrentInstance(arg.instanceId)) return;
       const { data, timestamp } = arg;
       useWorkflowStore.getState().setHITLApproved(data.feedback);
       useUIStore.getState().setShowHITLModal(false);
@@ -158,6 +171,7 @@ class SignalRClient {
     // HITL Rejected
     this.connection.on('hitlRejected', (arg: { data: HITLRejectedData; timestamp: string; instanceId: string }) => {
       console.log('hitlRejected received:', arg);
+      if (!isCurrentInstance(arg.instanceId)) return;
       const { data, timestamp } = arg;
       useWorkflowStore.getState().setHITLRejected(data.feedback);
       useUIStore.getState().setShowHITLModal(false);
@@ -167,6 +181,7 @@ class SignalRClient {
     // Reasoning Chunk
     this.connection.on('reasoningChunk', (arg: { data: ReasoningChunkData; timestamp: string; instanceId: string }) => {
       console.log('reasoningChunk received:', arg);
+      if (!isCurrentInstance(arg.instanceId)) return;
       const { data, timestamp } = arg;
       const chunk = {
         ...data,
@@ -184,6 +199,7 @@ class SignalRClient {
     // Workflow Completed
     this.connection.on('workflowCompleted', (arg: { data: WorkflowCompletedData; timestamp: string; instanceId: string }) => {
       console.log('workflowCompleted received:', arg);
+      if (!isCurrentInstance(arg.instanceId)) return;
       const { data, timestamp } = arg;
       useWorkflowStore.getState().setStatus('completed');
       useEventsStore.getState().addEvent('workflowCompleted', data, timestamp);
@@ -196,6 +212,7 @@ class SignalRClient {
     // Workflow Failed
     this.connection.on('workflowFailed', (arg: { data: { error: string }; timestamp: string; instanceId: string }) => {
       console.log('workflowFailed received:', arg);
+      if (!isCurrentInstance(arg.instanceId)) return;
       const { data, timestamp } = arg;
       useWorkflowStore.getState().setStatus('failed');
       useEventsStore.getState().addEvent('workflowFailed', data, timestamp);

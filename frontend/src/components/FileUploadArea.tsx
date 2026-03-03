@@ -1,6 +1,8 @@
 import React, { useRef } from 'react';
 import { useUploadPDF, useStartWorkflow, useDemoDocument, useValidateSchema } from '@/lib/queryKeys';
 import { useWorkflowStore } from '@/store/workflowStore';
+import { useEventsStore } from '@/store/eventsStore';
+import { useReasoningStore } from '@/store/reasoningStore';
 import { useUIStore } from '@/store/uiStore';
 import { useSignalR } from '@/lib/signalrClient';
 import { apiClient } from '@/lib/apiClient';
@@ -219,6 +221,20 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
     try {
       setTransitionPhase('starting');
 
+      // Clear stale state from any previous workflow
+      useEventsStore.getState().clearEvents();
+      useReasoningStore.getState().clearChunks();
+
+      // Terminate any previous running orchestration to prevent stale events
+      const previousInstanceId = useWorkflowStore.getState().instanceId;
+      if (previousInstanceId) {
+        try {
+          await apiClient.terminateWorkflow(previousInstanceId);
+        } catch {
+          // Non-fatal: old instance may already be completed/terminated
+        }
+      }
+
       // Connect SignalR FIRST (before starting workflow to minimize race window)
       // User-targeted messaging: no subscribe needed — the negotiate binds userId
       if (!signalR.isConnected()) {
@@ -245,8 +261,16 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
       // Sync any missed state
       await signalR.syncStatus(workflowResponse.instanceId);
 
-      // Store instanceId in cookie for history
-      document.cookie = `lastInstanceId=${workflowResponse.instanceId}; path=/; max-age=2592000`;
+      // Store instanceId in sessionStorage (cleared on browser close)
+      sessionStorage.setItem('currentInstanceId', workflowResponse.instanceId);
+      const history = JSON.parse(sessionStorage.getItem('workflowHistory') || '[]');
+      history.push({
+        instanceId: workflowResponse.instanceId,
+        domainId,
+        fileName,
+        startedAt: new Date().toISOString(),
+      });
+      sessionStorage.setItem('workflowHistory', JSON.stringify(history));
 
       setTransitionPhase('ready');
       // Brief pause to show the "ready" state before transitioning
