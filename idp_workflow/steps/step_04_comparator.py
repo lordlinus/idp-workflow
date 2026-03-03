@@ -61,6 +61,14 @@ class ComparisonResult(BaseModel):
     )
 
 
+class BatchComparisonOutput(BaseModel):
+    """Wrapper for batch field comparison output (avoids DSPy list[Model] output bug)."""
+
+    analyses: list[FieldComparisonAnalysis] = Field(
+        description="Analysis for each differing field"
+    )
+
+
 class BatchFieldComparisonSignature(dspy.Signature):
     """Compare multiple differing fields in a single LLM call."""
 
@@ -68,8 +76,8 @@ class BatchFieldComparisonSignature(dspy.Signature):
         desc="JSON list of {field_name, azure_value, dspy_value}"
     )
     document_context: str = dspy.InputField(desc="Document type for context")
-    analyses: list[FieldComparisonAnalysis] = dspy.OutputField(
-        desc="Analysis for each field"
+    result: BatchComparisonOutput = dspy.OutputField(
+        desc="Comparison analyses for all differing fields"
     )
 
 
@@ -90,7 +98,7 @@ class BatchFieldComparator(dspy.Module):
             differing_fields=json.dumps(differing_fields),
             document_context=document_context,
         )
-        return result.analyses
+        return result.result.analyses
 
 
 def create_matching_field_analysis(
@@ -287,7 +295,7 @@ class ExtractionComparator:
                         if analysis.requires_human_review:
                             fields_needing_review.append(analysis.field_name)
                 except Exception as e:
-                    logger.error(f"LLM analysis failed: {e}")
+                    logger.error(f"LLM analysis failed: {type(e).__name__}: {e}", exc_info=True)
                     # Fallback: mark differing fields as needing review
                     for field_data in differing_field_data:
                         field_name = field_data["field_name"]

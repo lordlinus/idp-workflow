@@ -4,9 +4,16 @@ Registers orchestration, activities, HTTP + SignalR endpoints.
 """
 
 import logging
+import sys
+import types
 
 import azure.functions as func
 import azure.durable_functions as df
+
+# Azure Functions worker doesn't set sys.modules['__main__'], which causes
+# KeyError in inspect.getmodule() when DSPy calls inspect.stack() internally.
+if "__main__" not in sys.modules:
+    sys.modules["__main__"] = types.ModuleType("__main__")
 
 from idp_workflow.config import SIGNALR_HUB_NAME, SIGNALR_CONNECTION_SETTING
 from idp_workflow.activities import register_activities

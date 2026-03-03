@@ -1,0 +1,21 @@
+{
+  "domain_id": "medical_examination",
+  "display_name": "Medical Examination Forms",
+  "description": "Process medical examination and physical assessment forms used in life insurance underwriting. Handles checkbox Yes/No questions, physical measurements, handwritten medical notes, and examiner findings.",
+  "icon": "🩺",
+  "stp_confidence_threshold": 0.90,
+  "require_human_review_categories": [
+    "Medical_Examination_Checkbox_Page",
+    "Medical_Examination_Details"
+  ],
+  "max_processing_pages": 20,
+  "settings": {
+    "date_format": "DD/MM/YYYY",
+    "form_language": "English/Malay",
+    "checkbox_layout": "two_column_yes_no",
+    "yes_column_position": "left",
+    "no_column_position": "right",
+    "details_column_position": "far_right",
+    "expected_question_sections": ["9-11", "12(a)-12(i)", "13-14"]
+  }
+}

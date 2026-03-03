@@ -1,0 +1,141 @@
+{
+  "baseAnalyzerId": "prebuilt-document",
+  "scenario": "document",
+  "description": "Medical examination form with checkbox Yes/No questions used in life insurance underwriting.\n\nCRITICAL VISUAL LAYOUT for checkbox questions:\n- Each question row has TWO small square checkbox boxes arranged horizontally.\n- The LEFT box is under the 'Yes / Ya' column header.\n- The RIGHT box is under the 'No / Tidak' column header.\n- A wide column on the FAR RIGHT side is labeled 'DETAILS – PLEASE GIVE FULL DETAILS OF ADVERSE FINDINGS AND OPINIONS' — this column contains handwritten text, NOT checkbox marks.\n- Handwritten scribbles, notes, or annotations in the DETAILS column or margins must NEVER be interpreted as checkbox marks.\n- Some checkboxes may have very small ticks, crosses, slashes, or filled marks — any pen stroke inside or overlapping a checkbox box counts as a mark.",
+  "config": {
+    "returnDetails": true,
+    "enableOcr": true,
+    "enableLayout": true,
+    "estimateFieldSourceAndConfidence": true
+  },
+  "models": {
+    "completion": "gpt-4.1"
+  },
+  "fieldSchema": {
+    "fields": {
+      "formTitle": {
+        "type": "string",
+        "method": "extract",
+        "description": "Title or heading of the form as printed at the top of the document (e.g. 'PEMERIKSAAN FIZIKAL BEDSIDE')"
+      },
+      "formVersion": {
+        "type": "string",
+        "method": "extract",
+        "description": "Version identifier, revision date, or form number if present. Empty string if not visible."
+      },
+
+      "checkboxColumnLayout": {
+        "type": "string",
+        "method": "extract",
+        "description": "Describe the column headers for the checkbox area exactly as printed, reading left to right. Typically: 'Yes / Ya' column, then 'No / Tidak' column, then 'DETAILS' column. Report the exact header text you see for each column."
+      },
+
+      "checkboxQuestions": {
+        "type": "array",
+        "method": "extract",
+        "description": "Every question on the form that has a Yes/No checkbox pair. Extract ALL of them in document order.\n\nCHECKBOX READING RULES:\n1. Each question has exactly TWO small square boxes side by side. The LEFT box = 'Yes' column, the RIGHT box = 'No' column.\n2. A checkbox is MARKED if it contains ANY pen stroke: tick (✓), cross (✗), slash (/), diagonal line, filled square, circle, dot, or any handwritten mark that overlaps the box boundary.\n3. A checkbox is UNMARKED if the box is completely empty with clean edges and no ink inside.\n4. If the LEFT box is marked → answer is 'Yes'. If the RIGHT box is marked → answer is 'No'. If BOTH boxes are empty → answer is 'Unmarked'.\n5. CRITICAL: Do NOT confuse handwritten text in the DETAILS column (far right of the row) with checkbox marks. The DETAILS column is separated from the checkboxes by significant horizontal space.\n6. CRITICAL: Do NOT confuse margin annotations, scribbles, question numbers written by hand, or doodles near the question with checkbox selections.\n7. If a selection mark is ambiguous, look at the spatial alignment — is the mark centered under the 'Yes' header or under the 'No' header?\n8. Some forms have bilingual text (English and Malay/Bahasa) for each question — extract only the English text for questionText.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "questionId": {
+              "type": "string",
+              "description": "The printed question number or label EXACTLY as shown on the form, preserving parentheses, dots, and letter case. Examples: '9', '10', '11(a)', '11(b)', '12(a)', '12(g)', '14(B)', '14(d)'. For sub-items use the full compound ID like '12(a)' not just 'a'."
+            },
+            "questionText": {
+              "type": "string",
+              "description": "The full printed question text in English only (ignore the Malay/Bahasa translation that typically appears in italics below the English text)"
+            },
+            "answer": {
+              "type": "string",
+              "description": "Which checkbox is marked in this question's row. The form has TWO checkbox columns: LEFT column = 'Yes', RIGHT column = 'No'. Determine which column's box contains a mark (tick, cross, slash, fill, or any pen stroke). Return 'Yes' if the LEFT box is marked, 'No' if the RIGHT box is marked, or 'Unmarked' if BOTH boxes are completely empty. IMPORTANT: handwritten text in the DETAILS column to the far right is NOT a checkbox mark.",
+              "enum": ["Yes", "No", "Unmarked"]
+            },
+            "handwrittenNote": {
+              "type": "string",
+              "description": "Any handwritten text found in the DETAILS column (the wide column on the far right side of the form, past the Yes/No checkboxes) that is associated with this question's row. Transcribe as accurately as possible. Return empty string if the DETAILS area for this row is blank."
+            }
+          }
+        }
+      },
+
+      "subQuestions": {
+        "type": "array",
+        "method": "extract",
+        "description": "Follow-up or sub-questions (usually numbered i, ii, iii, iv, v, etc.) that require free-text handwritten answers rather than Yes/No checkboxes. These typically appear indented after a main checkbox question.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "parentQuestionId": {
+              "type": "string",
+              "description": "The question number of the parent checkbox question this sub-question belongs to (e.g. '3(a)', '12(g)')"
+            },
+            "subQuestionId": {
+              "type": "string",
+              "description": "The sub-question number exactly as printed (e.g. 'i', 'ii', 'iii', 'iv', 'v')"
+            },
+            "questionText": {
+              "type": "string",
+              "description": "The printed sub-question text in English only"
+            },
+            "handwrittenAnswer": {
+              "type": "string",
+              "description": "The handwritten response to this sub-question, transcribed as accurately as possible. Empty string if blank."
+            }
+          }
+        }
+      },
+
+      "measurements": {
+        "type": "array",
+        "method": "extract",
+        "description": "All numeric measurements or readings on the form including height, weight, blood pressure, visual acuity, pulse rate, urine analysis results, BMI, and any other biometric values.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "label": {
+              "type": "string",
+              "description": "The printed label for this measurement exactly as shown (e.g. 'Height (cm)', 'Weight (kg)', 'Right eye/ Mata kanan:', 'Left eye/ Mata kiri:', 'Systolic', 'Diastolic', 'Pulse rate')"
+            },
+            "value": {
+              "type": "string",
+              "description": "The recorded value including units if written (e.g. '154', '53', '6/6', '120/80', '72')"
+            },
+            "isHandwritten": {
+              "type": "boolean",
+              "description": "True if the value appears to be handwritten, false if printed or typed"
+            }
+          }
+        }
+      },
+
+      "marginAnnotations": {
+        "type": "array",
+        "method": "extract",
+        "description": "Handwritten notes in the margins, blank spaces, or the DETAILS column that are NOT directly answering a specific numbered question. These might be examiner remarks, clarifications, additional findings, or reference codes.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "description": "The transcribed handwritten text as accurately as possible"
+            },
+            "nearestQuestion": {
+              "type": "string",
+              "description": "The question number closest to this annotation if identifiable (e.g. '12(c)'). Empty string if position is unclear."
+            },
+            "position": {
+              "type": "string",
+              "description": "Approximate position on the page: 'top-left', 'top-right', 'right-margin', 'bottom', 'left-margin', 'inline', 'details-column'"
+            }
+          }
+        }
+      },
+
+      "pageNumber": {
+        "type": "number",
+        "method": "extract",
+        "description": "Page number if printed on the document. 0 if no page number is visible."
+      }
+    }
+  }
+}

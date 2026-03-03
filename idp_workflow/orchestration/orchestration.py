@@ -263,10 +263,11 @@ def register_orchestration(app):
                 "instance_id": context.instance_id,
             }
 
-            # DSPy takes Step 1's full_text (markdown)
+            # DSPy takes Step 1's full_text (markdown) + pdf_path for multimodal image input
             dspy_extraction_input = {
                 "full_text": pdf_content_info.get("full_text", ""),
                 "total_pages": pdf_content_info.get("total_pages", 0),
+                "pdf_path": pdf_path,
                 "domain_id": domain_id,
                 "request_id": request_id,
                 "options": options,

@@ -181,6 +181,44 @@ class SignalRRestClient:
             ],
         )
 
+    def send_step_completed(
+        self,
+        user_id: str,
+        instance_id: str,
+        step_name: str,
+        display_name: str,
+        step_number: int,
+        duration_ms: float = 0,
+        output_preview: str = "",
+        output_data: dict | None = None,
+    ) -> None:
+        """Send a stepCompleted event directly from an activity.
+
+        This lets parallel activities (e.g. Step 3 Azure CU / DSPy) notify
+        the frontend the instant they finish, rather than waiting for the
+        orchestrator's ``task_all`` to yield.
+        """
+        self.send_to_user(
+            user_id=user_id,
+            target="stepCompleted",
+            arguments=[
+                {
+                    "event": "stepCompleted",
+                    "instanceId": instance_id,
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "data": {
+                        "stepName": step_name,
+                        "displayName": display_name,
+                        "stepNumber": step_number,
+                        "status": "completed",
+                        "durationMs": duration_ms,
+                        "outputPreview": output_preview,
+                        "outputData": output_data or {},
+                    },
+                }
+            ],
+        )
+
     def send_step_progress(
         self,
         user_id: str,

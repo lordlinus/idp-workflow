@@ -24,6 +24,11 @@ export const DOMAIN_CONFIG: Record<
     icon: '📊',
     description: 'Analyze trade finance documents',
   },
+  medical_examination: {
+    label: 'Medical Examination Forms',
+    icon: '🩺',
+    description: 'Process medical examination and physical assessment forms',
+  },
 };
 
 /**

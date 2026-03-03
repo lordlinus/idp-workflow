@@ -1,0 +1,74 @@
+[
+  {
+    "name": "yes_answer_requires_details",
+    "description": "When a checkbox question is answered 'Yes' (indicating an adverse finding), the DETAILS column should contain a handwritten explanation. Flag if 'Yes' but no handwritten note.",
+    "rule_type": "cross_field",
+    "parameters": {
+      "array_field": "checkboxQuestions",
+      "condition_field": "answer",
+      "condition_value": "Yes",
+      "required_field": "handwrittenNote",
+      "required_not_empty": true
+    },
+    "severity": "warning"
+  },
+  {
+    "name": "expected_question_12_completeness",
+    "description": "Section 12 should contain sub-questions 12(a) through 12(i) — all nine must be extracted. Missing questions may indicate a checkbox detection failure.",
+    "rule_type": "array_completeness",
+    "parameters": {
+      "array_field": "checkboxQuestions",
+      "id_field": "questionId",
+      "expected_ids": [
+        "12(a)", "12(b)", "12(c)", "12(d)", "12(e)",
+        "12(f)", "12(g)", "12(h)", "12(i)"
+      ]
+    },
+    "severity": "error"
+  },
+  {
+    "name": "unmarked_checkbox_threshold",
+    "description": "If more than 50% of checkbox questions are 'Unmarked', the form may have been poorly scanned or the checkbox detection is failing. Flag for review.",
+    "rule_type": "threshold",
+    "parameters": {
+      "array_field": "checkboxQuestions",
+      "count_field": "answer",
+      "count_value": "Unmarked",
+      "operator": "percentage_greater_than",
+      "value": 0.50
+    },
+    "severity": "warning"
+  },
+  {
+    "name": "low_confidence_checkbox_review",
+    "description": "Flag any checkbox question where extraction confidence is below 0.7 for human review",
+    "rule_type": "threshold",
+    "parameters": {
+      "field": "checkboxQuestions",
+      "confidence_threshold": 0.7
+    },
+    "severity": "warning"
+  },
+  {
+    "name": "measurements_present",
+    "description": "At minimum, height and weight measurements should be present on a medical exam form",
+    "rule_type": "array_completeness",
+    "parameters": {
+      "array_field": "measurements",
+      "label_field": "label",
+      "expected_labels_contain": ["Height", "Weight"]
+    },
+    "severity": "warning"
+  },
+  {
+    "name": "valid_answer_values",
+    "description": "Every checkbox answer must be exactly 'Yes', 'No', or 'Unmarked'. Any other value is invalid.",
+    "rule_type": "enum_validation",
+    "parameters": {
+      "array_field": "checkboxQuestions",
+      "field": "answer",
+      "allowed_values": ["Yes", "No", "Unmarked"]
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,107 @@
+[
+  {
+    "name": "Medical_Examination_Checkbox_Page",
+    "description/Note": "Page containing checkbox-style Yes/No medical questions arranged in a table with 'Yes/Ya' and 'No/Tidak' column headers. Each question has two small square checkbox boxes (left=Yes, right=No) and a DETAILS column on the far right for handwritten notes.",
+    "pattern_keywords": [
+      "PEMERIKSAAN FIZIKAL",
+      "BEDSIDE",
+      "Yes",
+      "Ya",
+      "No",
+      "Tidak",
+      "DETAILS",
+      "ADVERSE FINDINGS",
+      "Respiratory system",
+      "nervous system",
+      "Genito-urinary",
+      "Gastrointestinal",
+      "Thyroid",
+      "Lymphatic",
+      "Breasts",
+      "varicose veins",
+      "deformities",
+      "lameness",
+      "amputations"
+    ],
+    "required": true,
+    "extraction_priority": 1
+  },
+  {
+    "name": "Medical_Examination_Measurements",
+    "description/Note": "Page or section containing physical measurements such as height (cm), weight (kg), visual acuity, blood pressure readings, pulse rate, urine analysis, and other biometric data.",
+    "pattern_keywords": [
+      "Height",
+      "Tinggi",
+      "Weight",
+      "Berat",
+      "Visual acuity",
+      "Ketajaman penglihatan",
+      "Blood pressure",
+      "Tekanan darah",
+      "Pulse rate",
+      "Urine",
+      "Right eye",
+      "Left eye",
+      "Systolic",
+      "Diastolic",
+      "Uncorrected",
+      "Corrected"
+    ],
+    "required": false,
+    "extraction_priority": 2
+  },
+  {
+    "name": "Medical_Examination_Details",
+    "description/Note": "Page or section containing narrative findings, examiner opinions, medical history details, and handwritten clinical notes. Often in the 'DETAILS' column or a dedicated findings area.",
+    "pattern_keywords": [
+      "PLEASE GIVE FULL DETAILS",
+      "ADVERSE FINDINGS AND OPINIONS",
+      "PENEMUAN",
+      "PENDAPAT",
+      "KURANG MEMUASKAN",
+      "Details of abnormality",
+      "History of illness",
+      "Treatment details",
+      "Surgery",
+      "Findings"
+    ],
+    "required": false,
+    "extraction_priority": 1
+  },
+  {
+    "name": "Medical_Examination_Declaration",
+    "description/Note": "Page with examiner declaration, certification, signature, medical registration number, and date of examination.",
+    "pattern_keywords": [
+      "Declaration",
+      "I certify",
+      "Medical practitioner",
+      "Registration number",
+      "Signature",
+      "Date of examination",
+      "Tandatangan",
+      "Pengamal perubatan",
+      "Nombor pendaftaran"
+    ],
+    "required": true,
+    "extraction_priority": 0
+  },
+  {
+    "name": "Medical_History_Questions",
+    "description/Note": "Page containing applicant medical history questions about past diseases, hospitalizations, surgeries, and family history, typically answered via Yes/No checkboxes.",
+    "pattern_keywords": [
+      "medical history",
+      "sejarah perubatan",
+      "hospitalized",
+      "operation",
+      "surgery",
+      "family history",
+      "heart disease",
+      "diabetes",
+      "cancer",
+      "blood pressure",
+      "medication"
+    ],
+    "required": false,
+    "extraction_priority": 1
+  }
+]

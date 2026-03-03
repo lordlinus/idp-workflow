@@ -1,5 +1,5 @@
 // Workflow and Step Types
-export type DomainId = 'home_loan' | 'insurance_claims' | 'small_business_lending' | 'trade_finance';
+export type DomainId = 'home_loan' | 'insurance_claims' | 'medical_examination' | 'small_business_lending' | 'trade_finance';
 
 export type StepName =
   | 'step_01_pdf_extraction'

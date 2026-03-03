@@ -9,7 +9,9 @@ from idp_workflow.tools.dspy_utils import (
     create_extraction_model_from_dict,
     validate_extraction_schema,
     create_extraction_signature,
+    create_multimodal_extraction_signature,
 )
+from idp_workflow.tools.image_utils import pdf_to_base64_images
 from idp_workflow.tools.llm_factory import (
     create_dspy_lm,
     get_available_providers,
@@ -22,6 +24,8 @@ __all__ = [
     "create_extraction_model_from_dict",
     "validate_extraction_schema",
     "create_extraction_signature",
+    "create_multimodal_extraction_signature",
     "create_dspy_lm",
     "get_available_providers",
+    "pdf_to_base64_images",
 ]

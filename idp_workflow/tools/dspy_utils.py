@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import dspy
+from dspy import Image as DspyImage
 from pydantic import BaseModel, Field, create_model
 
 
@@ -255,6 +256,49 @@ def create_extraction_signature(
     }
 
     return type("DocumentExtractionSignature", (dspy.Signature,), signature_fields)
+
+
+def create_multimodal_extraction_signature(
+    extraction_model: type[BaseModel],
+) -> type[dspy.Signature]:
+    """Create a DSPy signature for multimodal document extraction with images.
+
+    Adds a document_image input field alongside the text input so vision-capable
+    models can see the spatial layout of the document (checkboxes, tick marks, etc.).
+
+    Args:
+        extraction_model: Pydantic model defining the extraction fields
+
+    Returns:
+        A DSPy Signature class for multimodal extraction
+    """
+    signature_fields = {
+        "__doc__": """Extract structured data from a document using both its text and image.
+
+        You are given the document text AND an image of the document page.
+        Use the image to verify spatial details like checkbox marks, tick marks,
+        handwritten notes, and layout positions that may be ambiguous in the text.
+        For checkbox/tick-mark detection, rely on the IMAGE rather than the text
+        representation, as the text may not accurately capture small marks.
+        Extract all relevant fields according to the output schema.
+        """,
+        "__annotations__": {
+            "document_text": str,
+            "document_image": DspyImage,
+            "extracted_data": extraction_model,
+        },
+        "document_text": dspy.InputField(
+            desc="Full document text content extracted via OCR"
+        ),
+        "document_image": dspy.InputField(
+            desc="Image of the document page showing spatial layout, checkboxes, and handwritten marks"
+        ),
+        "extracted_data": dspy.OutputField(
+            desc="Structured extracted data matching the schema"
+        ),
+    }
+
+    return type("MultimodalExtractionSignature", (dspy.Signature,), signature_fields)
 
 
 # =============================================================================

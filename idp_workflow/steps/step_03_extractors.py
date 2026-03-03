@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 import dspy
+from dspy import Image as DspyImage
 from pydantic import BaseModel
 
 from idp_workflow.config import (
@@ -27,6 +28,7 @@ from idp_workflow.tools import (
     create_extraction_model_from_schema,
     create_extraction_model_from_dict,
     create_extraction_signature,
+    create_multimodal_extraction_signature,
 )
 
 logger = logging.getLogger(__name__)
@@ -312,6 +314,29 @@ class DocumentExtractor(dspy.Module):
             return self._extraction_model()
 
 
+class MultimodalDocumentExtractor(dspy.Module):
+    """DSPy module for multimodal document extraction with image input."""
+
+    def __init__(self, extraction_model: type[BaseModel]) -> None:
+        super().__init__()
+        signature = create_multimodal_extraction_signature(extraction_model)
+        self.extract = dspy.ChainOfThought(signature)
+        self._extraction_model = extraction_model
+
+    def forward(self, document_text: str, document_image: DspyImage) -> BaseModel:
+        """Extract structured data from document text and image."""
+        result = self.extract(document_text=document_text, document_image=document_image)
+
+        extracted = result.extracted_data
+
+        if isinstance(extracted, self._extraction_model):
+            return extracted
+        elif isinstance(extracted, dict):
+            return self._extraction_model(**extracted)
+        else:
+            return self._extraction_model()
+
+
 class DSPyExtractor:
     """Extract document fields with DSPy using domain-specific schema."""
 
@@ -357,8 +382,17 @@ class DSPyExtractor:
                 self.schema_path
             )
 
-        # Create extractor module
+        # Create extractor module (text-only; multimodal extractor created on-demand)
         self.extractor = DocumentExtractor(extraction_model=self.extraction_model)
+        self._multimodal_extractor: MultimodalDocumentExtractor | None = None
+
+    def _get_multimodal_extractor(self) -> MultimodalDocumentExtractor:
+        """Lazily create the multimodal extractor on first use."""
+        if self._multimodal_extractor is None:
+            self._multimodal_extractor = MultimodalDocumentExtractor(
+                extraction_model=self.extraction_model
+            )
+        return self._multimodal_extractor
 
     def _extract_sync(self, document_text: str) -> BaseModel:
         """Synchronous extraction wrapper that sets up dspy.context().
@@ -368,10 +402,21 @@ class DSPyExtractor:
         with dspy.context(lm=self.lm):
             return self.extractor(document_text=document_text)  # type: ignore
 
+    def _extract_multimodal_sync(
+        self, document_text: str, document_image: DspyImage
+    ) -> BaseModel:
+        """Synchronous multimodal extraction with image input."""
+        with dspy.context(lm=self.lm):
+            extractor = self._get_multimodal_extractor()
+            return extractor(
+                document_text=document_text, document_image=document_image
+            )  # type: ignore
+
     async def extract(
         self,
         full_text: str,
         total_pages: int = 0,
+        page_images: list[str] | None = None,
     ) -> tuple[ExtractionResult, dict[str, Any]]:
         """Extract fields from document markdown using DSPy."""
         start_time = time.time()
@@ -395,13 +440,24 @@ class DSPyExtractor:
             except Exception:
                 pass
 
-        # Extract from the full document text
+        # Extract from document — use multimodal if page images are available
         try:
             loop = asyncio.get_event_loop()
-            extracted_model = await loop.run_in_executor(
-                None,
-                lambda: self._extract_sync(full_text),
-            )
+            if page_images:
+                # Use first page image for multimodal extraction
+                image = DspyImage(page_images[0])
+                logger.info(
+                    f"DSPy extractor: Using multimodal mode with {len(page_images)} page image(s)"
+                )
+                extracted_model = await loop.run_in_executor(
+                    None,
+                    lambda: self._extract_multimodal_sync(full_text, image),
+                )
+            else:
+                extracted_model = await loop.run_in_executor(
+                    None,
+                    lambda: self._extract_sync(full_text),
+                )
             extracted_data = extracted_model.model_dump()
             confidence_scores = calculate_confidence_scores(extracted_model)
             extraction_error = None
@@ -436,6 +492,7 @@ class DSPyExtractor:
             "processing_time_ms": round(processing_time_ms),
             "extracted_data": extracted_data,
             "schema_path": str(self.schema_path),
+            "multimodal": bool(page_images),
         }
         if extraction_error:
             step_output["error"] = extraction_error

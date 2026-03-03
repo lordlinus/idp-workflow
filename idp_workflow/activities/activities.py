@@ -234,6 +234,23 @@ def register_activities(app):
                 f"{extraction_result.total_pages_processed} pages"
             )
 
+            # Notify frontend immediately (don't wait for task_all in orchestrator)
+            if user_id and instance_id:
+                signalr_client = _create_signalr_client()
+                if signalr_client:
+                    from idp_workflow.constants import STEP_META
+                    dn, sn = STEP_META.get(STEP3_AZURE_EXTRACTION, ("Azure CU Extraction", 3))
+                    signalr_client.send_step_completed(
+                        user_id=user_id,
+                        instance_id=instance_id,
+                        step_name=STEP3_AZURE_EXTRACTION,
+                        display_name=dn,
+                        step_number=sn,
+                        duration_ms=ctx.elapsed_ms,
+                        output_preview=f"Azure: {extraction_result.total_pages_processed} pages processed",
+                        output_data=step_output,
+                    )
+
             return {
                 "extraction_result": extraction_result.model_dump(),
                 "step_output": step_output,
@@ -254,6 +271,9 @@ def register_activities(app):
             from idp_workflow.constants import STEP3_DSPY_EXTRACTION
             from idp_workflow.steps.step_03_extractors import DSPyExtractor
             from idp_workflow.tools.llm_factory import create_dspy_lm
+            from idp_workflow.utils.checkbox_enricher import (
+                enrich_markdown_with_checkbox_context,
+            )
 
             user_id = extract_request.get("user_id", "")
             instance_id = extract_request.get("instance_id", "")
@@ -262,11 +282,31 @@ def register_activities(app):
             total_pages = extract_request.get("total_pages", 0)
             options = extract_request.get("options", {})
             custom_schema = extract_request.get("custom_extraction_schema")
+            pdf_path = extract_request.get("pdf_path", "")
 
             if not full_text:
                 raise ValueError("full_text is required for DSPy extraction")
 
-            ctx.log_start(f"from {len(full_text)} chars")
+            # Enrich markdown with checkbox context if ☐/☒ symbols are present.
+            # DI's markdown serialization separates checkbox symbols from their
+            # question text in multi-column form layouts. The enricher appends
+            # an interpretation guide so the LLM can associate checkboxes with
+            # questions correctly.
+            full_text = enrich_markdown_with_checkbox_context(full_text)
+
+            # Convert PDF pages to images for multimodal extraction
+            page_images: list[str] | None = None
+            if pdf_path:
+                try:
+                    from idp_workflow.tools.image_utils import pdf_to_base64_images
+                    page_images = pdf_to_base64_images(pdf_path)
+                    logger.info(f"Converted {len(page_images)} page(s) to images for multimodal DSPy")
+                except Exception as img_err:
+                    logger.warning(f"Could not convert PDF to images, falling back to text-only: {img_err}")
+                    page_images = None
+
+            mode = "multimodal" if page_images else "text-only"
+            ctx.log_start(f"{mode}, {len(full_text)} chars")
 
             # Build streaming progress callback
             on_progress = None
@@ -292,12 +332,31 @@ def register_activities(app):
                 on_progress=on_progress,
             )
             extraction_result, step_output = await extractor.extract(
-                full_text=full_text, total_pages=total_pages
+                full_text=full_text,
+                total_pages=total_pages,
+                page_images=page_images,
             )
 
             ctx.log_complete(
                 f"{extraction_result.total_pages_processed} pages"
             )
+
+            # Notify frontend immediately (don't wait for task_all in orchestrator)
+            if user_id and instance_id:
+                signalr_client = _create_signalr_client()
+                if signalr_client:
+                    from idp_workflow.constants import STEP_META
+                    dn, sn = STEP_META.get(STEP3_DSPY_EXTRACTION, ("DSPy Extraction", 3))
+                    signalr_client.send_step_completed(
+                        user_id=user_id,
+                        instance_id=instance_id,
+                        step_name=STEP3_DSPY_EXTRACTION,
+                        display_name=dn,
+                        step_number=sn,
+                        duration_ms=ctx.elapsed_ms,
+                        output_preview=f"DSPy: {extraction_result.total_pages_processed} pages processed",
+                        output_data=step_output,
+                    )
 
             return {
                 "extraction_result": extraction_result.model_dump(),
