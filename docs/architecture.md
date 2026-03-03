@@ -395,7 +395,7 @@ Steps without a dedicated renderer automatically use `GenericOutput` (key-value 
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET/POST` | `/api/idp/negotiate` | Negotiate SignalR connection |
+| `GET/POST` | `/api/idp/signalr-connect` | SignalR connection info (renamed from "negotiate" to avoid SWA interception) |
 | `POST` | `/api/idp/subscribe/{instanceId}` | Subscribe to workflow updates |
 | `POST` | `/api/idp/unsubscribe/{instanceId}` | Unsubscribe from updates |
 

@@ -4,6 +4,13 @@
 
 set -euo pipefail
 
+# Skip if postdeploy has already been completed once
+ALREADY_DONE=$(azd env get-value POSTDEPLOY_DONE 2>/dev/null || echo "")
+if [ "$ALREADY_DONE" = "true" ]; then
+  echo "==> Postdeploy already completed. Skipping. (To re-run, execute: azd env set POSTDEPLOY_DONE false)"
+  exit 0
+fi
+
 echo "==> Uploading sample documents to blob storage..."
 
 # azd env get-value may print errors to stdout, so validate the result
@@ -117,3 +124,7 @@ if [ -n "$CURRENT_USER_ID" ]; then
 else
   echo "Could not determine current user. Skipping dashboard access grant."
 fi
+
+# Mark postdeploy as done so it is skipped on subsequent deploys
+azd env set POSTDEPLOY_DONE true
+echo "==> Postdeploy complete. Future deploys will skip this hook."

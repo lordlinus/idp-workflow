@@ -14,19 +14,6 @@ import {
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
 
 /**
- * Direct Function App URL for SignalR negotiate.
- * SWA's linked-backend proxy intercepts "negotiate" routes and injects its own
- * auth provider ("azureStaticWebApps"), which Azure SignalR Service doesn't
- * support. To work around this, the negotiate call bypasses SWA's proxy and
- * goes directly to the Function App.
- *
- * In local dev both URLs resolve to the same backend.
- * In production, NEXT_PUBLIC_FUNCTION_APP_URL points to the Function App
- * directly while API_BASE_URL goes through the SWA proxy.
- */
-const FUNCTION_APP_URL = process.env.NEXT_PUBLIC_FUNCTION_APP_URL || API_BASE_URL;
-
-/**
  * Get or create a persistent user ID for SignalR user-targeted messaging.
  * Stored in sessionStorage so it persists across page refreshes within a tab.
  */
@@ -94,16 +81,14 @@ class APIClient {
   }
 
   /**
-   * Get SignalR negotiation token (user-targeted).
-   * Calls the Function App directly to bypass SWA's proxy, which intercepts
-   * "negotiate" routes and injects an unsupported auth provider.
+   * Get SignalR connection info (user-targeted).
+   * Uses "/idp/signalr-connect" instead of "negotiate" because SWA intercepts
+   * routes containing "negotiate" and injects its own auth provider.
    */
   async negotiate(): Promise<{ url: string; accessToken: string }> {
-    const response = await axios.post<{ url: string; accessToken: string }>(
-      `${FUNCTION_APP_URL}/idp/negotiate`,
-      null,
-      { headers: { 'x-user-id': getUserId() } },
-    );
+    const response = await this.client.post<{ url: string; accessToken: string }>('/idp/signalr-connect', null, {
+      headers: { 'x-user-id': getUserId() },
+    });
     return response.data;
   }
 

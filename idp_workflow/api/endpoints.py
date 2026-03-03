@@ -665,7 +665,7 @@ def register_signalr_endpoints(app):
     """Register SignalR endpoints with the Azure Functions app."""
 
     @app.route(
-        route="idp/negotiate",
+        route="idp/signalr-connect",
         methods=["POST", "GET"],
         auth_level=func.AuthLevel.ANONYMOUS,
     )
