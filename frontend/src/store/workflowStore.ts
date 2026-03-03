@@ -80,17 +80,18 @@ export const useWorkflowStore = create<WorkflowState>()(
     ...initialState,
 
     initializeWorkflow: (instanceId: string, domain_id: DomainId, llmProvider?: string, llmModel?: string, customSchema?: ExtractionSchema | null, documentUrl?: string, documentName?: string) => {
-      set((state) => {
-        state.instanceId = instanceId;
-        state.domain_id = domain_id;
-        state.status = 'initializing';
-        state.startedAt = new Date().toISOString();
-        state.llmProvider = llmProvider || null;
-        state.llmModel = llmModel || null;
-        state.customSchema = customSchema || null;
-        state.documentUrl = documentUrl || null;
-        state.documentName = documentName || null;
-      });
+      set(() => ({
+        ...initialState,
+        instanceId,
+        domain_id,
+        status: 'initializing' as const,
+        startedAt: new Date().toISOString(),
+        llmProvider: llmProvider || null,
+        llmModel: llmModel || null,
+        customSchema: customSchema || null,
+        documentUrl: documentUrl || null,
+        documentName: documentName || null,
+      }));
     },
 
     setStatus: (status: WorkflowState['status']) => {
