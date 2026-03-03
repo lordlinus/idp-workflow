@@ -499,8 +499,8 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
             <div className="grid grid-cols-3 gap-2">
               {([
                 { id: 'azure_openai' as LLMProvider, label: 'Azure OpenAI', icon: '☁️' },
-                { id: 'openai' as LLMProvider, label: 'OpenAI', icon: '🔮' },
-                { id: 'openrouter' as LLMProvider, label: 'OpenRouter', icon: '🌐' },
+                { id: 'claude' as LLMProvider, label: 'Claude', icon: '🔮' },
+                { id: 'azure_ai_models' as LLMProvider, label: 'Azure AI Models', icon: '🔷' },
               ]).map((provider) => (
                 <button
                   key={provider.id}
@@ -520,10 +520,10 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
               ))}
             </div>
 
-            {/* Model selector for OpenRouter */}
-            {llmProvider === 'openrouter' && (
+            {/* Model selector for Azure AI Models (open-weight on Azure) */}
+            {llmProvider === 'azure_ai_models' && (
               <div className="mt-3">
-                <label className="block text-xs text-dark-400 mb-1">Model (shorthand or full path)</label>
+                <label className="block text-xs text-dark-400 mb-1">Model (deployed via Azure AI Foundry)</label>
                 <select
                   value={llmModel}
                   onChange={(e) => setLlmModel(e.target.value)}
@@ -532,15 +532,16 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
                   <option value="">Default (Qwen 2.5 72B)</option>
                   <option value="qwen">Qwen 2.5 72B Instruct</option>
                   <option value="qwen3">Qwen 3 235B</option>
-                  <option value="deepseek">DeepSeek Chat V3</option>
+                  <option value="deepseek">DeepSeek V3</option>
                   <option value="deepseek-r1">DeepSeek R1</option>
                   <option value="llama">Llama 3.3 70B</option>
+                  <option value="phi">Phi-4</option>
                 </select>
               </div>
             )}
 
-            {/* Model override for OpenAI */}
-            {llmProvider === 'openai' && (
+            {/* Model override for Claude */}
+            {llmProvider === 'claude' && (
               <div className="mt-3">
                 <label className="block text-xs text-dark-400 mb-1">Model</label>
                 <select
@@ -548,10 +549,10 @@ export function FileUploadArea({ onWorkflowStart }: FileUploadAreaProps) {
                   onChange={(e) => setLlmModel(e.target.value)}
                   className="w-full bg-dark-900 border border-dark-700 rounded-lg px-3 py-2 text-sm text-dark-200 focus:border-primary focus:outline-none"
                 >
-                  <option value="">Default (GPT-4.1)</option>
-                  <option value="gpt-4.1">GPT-4.1</option>
-                  <option value="gpt-4o">GPT-4o</option>
-                  <option value="gpt-4o-mini">GPT-4o Mini</option>
+                  <option value="">Default (Claude Sonnet 4)</option>
+                  <option value="claude-sonnet-4-20250514">Claude Sonnet 4</option>
+                  <option value="claude-opus-4-20250514">Claude Opus 4</option>
+                  <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku</option>
                 </select>
               </div>
             )}

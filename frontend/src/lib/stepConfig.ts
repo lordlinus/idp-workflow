@@ -49,7 +49,7 @@ const STEP_CONFIGS: StepConfig[] = [
     number: 3,
     displayName: 'LLM',
     fullDisplayName: 'DSPy LLM Extractor',
-    description: 'Extracts fields using DSPy with configurable LLM (Azure OpenAI, Qwen, DeepSeek)',
+    description: 'Extracts fields using DSPy with configurable LLM (Azure OpenAI, Claude, Azure AI Models)',
     icon: '🤖',
   },
   {

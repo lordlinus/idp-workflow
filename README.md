@@ -73,6 +73,11 @@ azd down --purge
 ## Run Locally
 
 ```bash
+# DTS Emulator (requires Docker)
+docker run -d -p 8080:8080 -p 8082:8082 \
+  -e DTS_TASK_HUB_NAMES=default,idpworkflow \
+  mcr.microsoft.com/dts/dts-emulator:latest
+
 # Backend (Terminal 1)
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt

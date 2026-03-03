@@ -96,6 +96,11 @@ Create or edit `local.settings.json` in the project root:
 | `COGNITIVE_SERVICES_ENDPOINT` | Yes | Cognitive Services (Content Understanding) endpoint |
 | `COGNITIVE_SERVICES_KEY` | Yes | Cognitive Services key |
 | `HITL_TIMEOUT_HOURS` | No | Human review timeout (default: `24`) |
+| `ANTHROPIC_API_KEY` | No | Anthropic API key (required if using Claude provider) |
+| `ANTHROPIC_MODEL` | No | Claude model name (default: `claude-sonnet-4-20250514`) |
+| `AZURE_AI_MODELS_ENDPOINT` | No | Azure AI Model Inference endpoint URL (required if using Azure AI Models provider) |
+| `AZURE_AI_MODELS_KEY` | No | Azure AI Model Inference API key (required if using Azure AI Models provider) |
+| `AZURE_AI_MODELS_MODEL` | No | Model shorthand or deployment name (default: `qwen`) |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | No | Application Insights (optional for local dev) |
 
 ---
@@ -105,15 +110,20 @@ Create or edit `local.settings.json` in the project root:
 The Durable Task Scheduler emulator runs as a Docker container:
 
 ```bash
-docker run -d --name dts-emulator -p 8080:8080 \
-  mcr.microsoft.com/durabletask/emulator:latest
+docker run -d -p 8080:8080 -p 8082:8082 \
+  -e DTS_TASK_HUB_NAMES=default,idpworkflow \
+  mcr.microsoft.com/dts/dts-emulator:latest
 ```
+
+This exposes port 8080 (scheduler API) and 8082 (dashboard UI), and pre-creates the `idpworkflow` task hub.
 
 Verify it's running:
 
 ```bash
 curl http://localhost:8080
 ```
+
+You can also open the DTS dashboard at `http://localhost:8082` to inspect orchestration instances.
 
 The connection string in `local.settings.json` should point to `http://localhost:8080` with `Authentication=None`.
 

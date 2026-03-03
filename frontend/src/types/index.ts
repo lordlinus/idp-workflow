@@ -172,7 +172,7 @@ export interface WorkflowCompletedData {
 }
 
 // LLM Provider Types
-export type LLMProvider = 'azure_openai' | 'openai' | 'openrouter';
+export type LLMProvider = 'azure_openai' | 'claude' | 'azure_ai_models';
 
 export interface WorkflowOptions {
   llm_provider?: LLMProvider;

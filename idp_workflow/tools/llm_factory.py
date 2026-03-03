@@ -2,8 +2,9 @@
 
 Supports multiple LLM providers for DSPy-based extraction and classification:
 - azure_openai: Azure OpenAI (default, uses existing env vars)
-- openai: Direct OpenAI API
-- openrouter: OpenRouter API (access to Qwen, DeepSeek, Llama, etc.)
+- claude: Anthropic Claude API
+- azure_ai_models: Azure AI Model Catalog / Azure AI Foundry serverless endpoints
+  for open-weight models (Qwen, DeepSeek, Llama, Phi, etc.)
 
 Provider selection is driven by `options.llm_provider` in WorkflowInitInput,
 with env-var defaults as fallback.
@@ -19,18 +20,22 @@ logger = logging.getLogger(__name__)
 
 # Supported provider identifiers
 PROVIDER_AZURE_OPENAI = "azure_openai"
-PROVIDER_OPENAI = "openai"
-PROVIDER_OPENROUTER = "openrouter"
+PROVIDER_CLAUDE = "claude"
+PROVIDER_AZURE_AI_MODELS = "azure_ai_models"
 
-SUPPORTED_PROVIDERS = {PROVIDER_AZURE_OPENAI, PROVIDER_OPENAI, PROVIDER_OPENROUTER}
+SUPPORTED_PROVIDERS = {PROVIDER_AZURE_OPENAI, PROVIDER_CLAUDE, PROVIDER_AZURE_AI_MODELS}
 
-# Well-known open-weight models available via OpenRouter
-OPENROUTER_MODELS = {
-    "qwen": "qwen/qwen-2.5-72b-instruct",
-    "qwen3": "qwen/qwen3-235b-a22b",
-    "deepseek": "deepseek/deepseek-chat-v3-0324",
-    "deepseek-r1": "deepseek/deepseek-r1",
-    "llama": "meta-llama/llama-3.3-70b-instruct",
+# Open-weight models available via Azure AI Model Catalog (serverless endpoints).
+# Deploy these from Azure AI Foundry → Model Catalog → Serverless API.
+# The shorthand maps to the catalog deployment name used by the
+# Azure AI Model Inference API (OpenAI-compatible).
+AZURE_AI_CATALOG_MODELS = {
+    "qwen": "Qwen2.5-72B-Instruct",
+    "qwen3": "Qwen3-235B-A22B",
+    "deepseek": "DeepSeek-V3",
+    "deepseek-r1": "DeepSeek-R1",
+    "llama": "Meta-Llama-3.3-70B-Instruct",
+    "phi": "Phi-4",
 }
 
 
@@ -44,7 +49,7 @@ def create_dspy_lm(options: dict[str, Any] | None = None) -> dspy.LM:
 
     Args:
         options: Optional workflow options dict. Supported keys:
-            - llm_provider: "azure_openai" | "openai" | "openrouter"
+            - llm_provider: "azure_openai" | "claude" | "azure_ai_models"
             - llm_model: Model name/deployment override
             - llm_temperature: Temperature override (default 0.0)
             - llm_api_key: Runtime API key override (not recommended)
@@ -66,10 +71,10 @@ def create_dspy_lm(options: dict[str, Any] | None = None) -> dspy.LM:
 
     if provider == PROVIDER_AZURE_OPENAI:
         return _create_azure_openai_lm(options, temperature)
-    elif provider == PROVIDER_OPENAI:
-        return _create_openai_lm(options, temperature)
-    elif provider == PROVIDER_OPENROUTER:
-        return _create_openrouter_lm(options, temperature)
+    elif provider == PROVIDER_CLAUDE:
+        return _create_claude_lm(options, temperature)
+    elif provider == PROVIDER_AZURE_AI_MODELS:
+        return _create_azure_ai_models_lm(options, temperature)
     else:
         raise ValueError(f"Unsupported LLM provider: {provider}")
 
@@ -96,38 +101,52 @@ def _create_azure_openai_lm(options: dict[str, Any], temperature: float) -> dspy
     )
 
 
-def _create_openai_lm(options: dict[str, Any], temperature: float) -> dspy.LM:
-    """Create direct OpenAI dspy.LM."""
-    model = options.get("llm_model", os.getenv("OPENAI_MODEL", "gpt-4.1"))
-    api_key = options.get("llm_api_key", os.getenv("OPENAI_API_KEY", ""))
+def _create_claude_lm(options: dict[str, Any], temperature: float) -> dspy.LM:
+    """Create Anthropic Claude dspy.LM."""
+    model = options.get("llm_model", os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"))
+    api_key = options.get("llm_api_key", os.getenv("ANTHROPIC_API_KEY", ""))
 
     if not api_key:
-        raise ValueError("OPENAI_API_KEY is required for openai provider")
+        raise ValueError("ANTHROPIC_API_KEY is required for claude provider")
 
-    logger.info(f"Creating OpenAI LM: openai/{model}")
+    logger.info(f"Creating Claude LM: anthropic/{model}")
     return dspy.LM(
-        model=f"openai/{model}",
+        model=f"anthropic/{model}",
         api_key=api_key,
         temperature=temperature,
     )
 
 
-def _create_openrouter_lm(options: dict[str, Any], temperature: float) -> dspy.LM:
-    """Create OpenRouter dspy.LM (for Qwen, DeepSeek, Llama, etc.)."""
-    raw_model = options.get("llm_model", os.getenv("OPENROUTER_MODEL", "qwen"))
-    api_key = options.get("llm_api_key", os.getenv("OPENROUTER_API_KEY", ""))
+def _create_azure_ai_models_lm(options: dict[str, Any], temperature: float) -> dspy.LM:
+    """Create Azure AI Model Catalog dspy.LM (for open-weight models on Azure).
+
+    Uses Azure AI Foundry serverless endpoints which expose an OpenAI-compatible
+    chat completions API. Deploy models from the Azure AI Model Catalog
+    (Qwen, DeepSeek, Llama, Phi, etc.) as serverless APIs, then point
+    AZURE_AI_MODELS_ENDPOINT to the endpoint URL.
+
+    For individual serverless (MaaS) deployments each model gets its own
+    endpoint and key. For the unified Azure AI Model Inference endpoint
+    (https://<project>.services.ai.azure.com/models) a single endpoint
+    serves multiple models and you select by model name.
+    """
+    raw_model = options.get("llm_model", os.getenv("AZURE_AI_MODELS_MODEL", "qwen"))
+    api_key = options.get("llm_api_key", os.getenv("AZURE_AI_MODELS_KEY", ""))
+    api_base = os.getenv("AZURE_AI_MODELS_ENDPOINT", "")
 
     if not api_key:
-        raise ValueError("OPENROUTER_API_KEY is required for openrouter provider")
+        raise ValueError("AZURE_AI_MODELS_KEY is required for azure_ai_models provider")
+    if not api_base:
+        raise ValueError("AZURE_AI_MODELS_ENDPOINT is required for azure_ai_models provider")
 
-    # Resolve shorthand model names to full OpenRouter paths
-    model = OPENROUTER_MODELS.get(raw_model, raw_model)
+    # Resolve shorthand model names to Azure AI Catalog deployment names
+    model = AZURE_AI_CATALOG_MODELS.get(raw_model, raw_model)
 
-    logger.info(f"Creating OpenRouter LM: openrouter/{model}")
+    logger.info(f"Creating Azure AI Models LM: openai/{model} via {api_base}")
     return dspy.LM(
-        model=f"openrouter/{model}",
+        model=f"openai/{model}",
         api_key=api_key,
-        api_base="https://openrouter.ai/api/v1",
+        api_base=api_base,
         temperature=temperature,
     )
 
@@ -142,16 +161,16 @@ def get_available_providers() -> list[dict[str, Any]]:
             "requires_env": ["AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_KEY"],
         },
         {
-            "id": PROVIDER_OPENAI,
-            "name": "OpenAI",
-            "description": "Direct OpenAI API (GPT-4.1, GPT-4o)",
-            "requires_env": ["OPENAI_API_KEY"],
+            "id": PROVIDER_CLAUDE,
+            "name": "Claude",
+            "description": "Anthropic Claude models (Claude Sonnet, Claude Opus)",
+            "requires_env": ["ANTHROPIC_API_KEY"],
         },
         {
-            "id": PROVIDER_OPENROUTER,
-            "name": "OpenRouter",
-            "description": "Open-weight models via OpenRouter (Qwen, DeepSeek, Llama)",
-            "requires_env": ["OPENROUTER_API_KEY"],
-            "shorthand_models": OPENROUTER_MODELS,
+            "id": PROVIDER_AZURE_AI_MODELS,
+            "name": "Azure AI Models",
+            "description": "Open-weight models on Azure (Qwen, DeepSeek, Llama, Phi) via Azure AI Foundry serverless endpoints",
+            "requires_env": ["AZURE_AI_MODELS_ENDPOINT", "AZURE_AI_MODELS_KEY"],
+            "shorthand_models": AZURE_AI_CATALOG_MODELS,
         },
     ]
