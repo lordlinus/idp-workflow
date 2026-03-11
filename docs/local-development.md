@@ -20,7 +20,7 @@ You also need access to these Azure services (they can be shared / dev-tier):
 - Azure OpenAI (or an APIM gateway)
 - Azure Document Intelligence
 - Azure Cognitive Services (Content Understanding)
-- Azure SignalR Service
+- Azure SignalR Service (Serverless mode)
 
 ---
 
@@ -38,6 +38,7 @@ pip install -r requirements.txt
 # Next.js frontend
 cd frontend
 npm install
+cp .env.local.example .env.local
 cd ..
 ```
 
@@ -149,7 +150,7 @@ Or use the VS Code Azurite extension.
 
 ```bash
 # Terminal 1: Backend
-source .venv/bin/activate
+source .venv/bin/activate   # Windows (PowerShell): .venv\Scripts\Activate.ps1
 func start
 
 # Terminal 2: Frontend
@@ -210,7 +211,10 @@ npm run type-check   # TypeScript strict check
 | Problem | Solution |
 |---------|----------|
 | `func start` fails with missing modules | Ensure you activated the venv: `source .venv/bin/activate` |
+| `func start` still fails after above | Add `languageWorkers__python__defaultExecutablePath` parameter to `local.settings.json` and set to the path of your Python executable in the virtual environment (example: `C:\\path\\to\\repo\\.venv\\Scripts\\python.exe`) |
 | SignalR connection errors | Verify `AzureSignalRConnectionString` is correct and the service is running |
 | DTS emulator not reachable | Check Docker: `docker ps` — the container should be mapped to port 8080 |
 | Storage errors | Ensure Azurite is running or `AzureWebJobsStorage` points to a valid storage account |
 | CORS errors in browser | `local.settings.json` should have `"Host": { "CORS": "*" }` |
+| "Defaults have not yet been set" error | Go to your https://contentunderstanding.ai.azure.com/settings and test Layout to get the defaults set |
+| "Azure CU extraction failed: Operation timed out after 120.00 seconds." error | On first run of an analyzer, the Content Understanding needs to load the analyzer. In the Content Understanding portal go to "Build" -> "Analyzer list" and wait for the status to change from "Loading" to "Ready". This only needs to be done once per analyzer. |
