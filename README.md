@@ -1,4 +1,4 @@
-# Intelligent Document Processing (IDP) Workflow
+# DocProcessIQ — Intelligent Document Processing
 
 [![GitHub stars](https://img.shields.io/github/stars/lordlinus/idp-workflow?style=flat-square)](https://github.com/lordlinus/idp-workflow/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/lordlinus/idp-workflow?style=flat-square)](https://github.com/lordlinus/idp-workflow/network/members)
@@ -126,6 +126,31 @@ See [Local Development Guide](docs/local-development.md) for full environment se
 
 ## How It Works
 
+```mermaid
+flowchart LR
+    classDef extract fill:#107C10,stroke:#0B5B0B,color:#fff
+    classDef compare fill:#0078D4,stroke:#005A9E,color:#fff
+    classDef hitl fill:#FF8C00,stroke:#CC7000,color:#fff
+    classDef reason fill:#5C2D91,stroke:#4B2376,color:#fff
+    classDef result fill:#333,stroke:#1a1a1a,color:#fff
+    classDef start fill:#0078D4,stroke:#005A9E,color:#fff
+
+    PDF(["📄 Upload PDF"]):::start
+    S1["① PDF Extraction<br/>Doc Intelligence → Markdown"]:::extract
+    S2["② Classification<br/>DSPy ChainOfThought"]:::extract
+    S3A["③a Azure CU<br/>Structured Extraction"]:::extract
+    S3B["③b DSPy LLM<br/>Multi-provider"]:::extract
+    S4["④ Comparison<br/>Field-by-field Diff"]:::compare
+    S5["⑤ Human Review<br/>HITL Gate"]:::hitl
+    S6["⑥ AI Reasoning<br/>Validation & Scoring"]:::reason
+    OUT(["✅ Structured Result"]):::result
+
+    PDF --> S1 --> S2
+    S2 --> S3A & S3B
+    S3A & S3B --> S4
+    S4 --> S5 --> S6 --> OUT
+```
+
 ```
 POST /api/idp/start
  → Step 1  PDF Extraction        (Azure Document Intelligence → Markdown)
@@ -145,6 +170,25 @@ Each step broadcasts `stepStarted` / `stepCompleted` events via SignalR so the f
 |----------|-------------|
 | [Architecture & Patterns](docs/architecture.md) | Deep dive into backend/frontend patterns, project structure, and how to extend the pipeline |
 | [Local Development](docs/local-development.md) | Environment variables, DTS emulator, running backend + frontend locally |
+
+## Making It Real
+
+We're actively exploring this pattern with customers across industries where high-volume document processing is a bottleneck:
+
+| Industry | Use Case | Before | After | Key Value |
+|----------|----------|--------|-------|----------|
+| **Financial Services** | Mortgage & loan underwriting | 2–5 days | Minutes | Dual-model extraction catches errors single-model pipelines miss. Human review focuses on the 10–15% of fields that need attention. |
+| **Insurance** | Claims intake & adjudication | 4–8 hours | Minutes | Per-page classification handles multi-section claims. AI reasoning validates against policy rules. Complete audit trail for compliance. |
+| **Healthcare** | Medical records & billing | Hours | Minutes | Domain-driven schemas handle varied formats. Confidence scoring prioritizes which records need human verification. |
+| **Trade Finance** | Letter of credit & invoice verification | Days | Minutes | Parallel extraction cross-validates financial figures. Field-by-field comparison surfaces discrepancies instantly. |
+| **Government** | Permit & application processing | Weeks | Hours | Zero-code extensibility — new form types onboarded with JSON configs, not development cycles. |
+
+**Why this pattern works:**
+
+- **Accuracy over speed** — Dual-model cross-validation beats any single model. Disagreements direct human attention to exactly the fields that need it.
+- **Compliance built in** — Every step, decision, and human override timestamped. No separate audit system.
+- **No AI vendor lock-in** — Switch between Azure OpenAI, Claude, or open-weight models from a dropdown.
+- **Days to onboard new doc types** — Four JSON files per domain. No code changes, no model retraining.
 
 ## Tech Stack
 

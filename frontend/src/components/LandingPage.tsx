@@ -95,6 +95,59 @@ const WALKTHROUGH = [
   { step: 6, title: 'AI Reasoning & Validation', desc: 'Agent validates against domain business rules, checks cross-field logic, and generates a final confidence score with recommendations.' },
 ];
 
+/* ------------------------------------------------------------------ */
+/*  Making It Real — customer explorations                             */
+/* ------------------------------------------------------------------ */
+const CUSTOMER_SCENARIOS = [
+  {
+    icon: '🏦',
+    industry: 'Financial Services',
+    useCase: 'Mortgage & Loan Underwriting',
+    before: '2–5 days',
+    after: 'Minutes',
+    detail: 'Dual-model extraction catches errors that single-model pipelines miss. Human review focuses on the 10–15% of fields that actually need attention, not the entire document.',
+  },
+  {
+    icon: '📋',
+    industry: 'Insurance',
+    useCase: 'Claims Intake & Adjudication',
+    before: '4–8 hours',
+    after: 'Minutes',
+    detail: 'Per-page classification handles multi-section claims correctly. AI reasoning agent validates against policy rules automatically. Complete audit trail for regulatory compliance.',
+  },
+  {
+    icon: '🏥',
+    industry: 'Healthcare',
+    useCase: 'Medical Records & Billing',
+    before: 'Hours',
+    after: 'Minutes',
+    detail: 'Domain-driven schemas handle varied medical form formats. Confidence scoring prioritizes which records need human verification.',
+  },
+  {
+    icon: '🚢',
+    industry: 'Trade Finance',
+    useCase: 'Letter of Credit & Invoice Verification',
+    before: 'Days',
+    after: 'Minutes',
+    detail: 'Parallel extraction cross-validates financial figures. Field-by-field comparison surfaces discrepancies instantly rather than after manual review.',
+  },
+  {
+    icon: '🏛️',
+    industry: 'Government',
+    useCase: 'Permit & Application Processing',
+    before: 'Weeks',
+    after: 'Hours',
+    detail: 'Zero-code domain extensibility means new form types are onboarded with JSON configs, not development cycles.',
+  },
+];
+
+const WHY_CUSTOMERS_CARE = [
+  { icon: '🎯', title: 'Accuracy over speed alone', desc: 'Dual-model cross-validation means higher accuracy than any single model. Disagreements direct human attention to exactly the fields that need it.' },
+  { icon: '🔒', title: 'Compliance built in', desc: 'Every step, every decision, every human override is timestamped. No separate audit system needed.' },
+  { icon: '🔄', title: 'No AI vendor lock-in', desc: 'Switch between Azure OpenAI, Claude, or open-weight models on Azure AI from a dropdown — no redeployment.' },
+  { icon: '⚡', title: 'Days to onboard new doc types', desc: 'Four JSON files per domain. No code changes, no model retraining, no development cycles.' },
+];
+
 /* ================================================================== */
 /*  Component                                                          */
 /* ================================================================== */
@@ -110,7 +163,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <span className="text-sm font-bold tracking-tight">IDP Workflow</span>
+            <span className="text-sm font-bold tracking-tight">DocProcessIQ</span>
           </div>
           <div className="flex items-center gap-3">
             <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="text-xs text-dark-400 hover:text-dark-200 transition-colors">
@@ -441,6 +494,67 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                 {/* Content */}
                 <div className="pb-8">
                   <h4 className="font-semibold text-dark-100 text-sm">{item.title}</h4>
+                  <p className="text-xs text-dark-400 mt-1 leading-relaxed">{item.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ================================================================ */}
+      {/*  Making It Real                                                   */}
+      {/* ================================================================ */}
+      <section className="border-t border-dark-800/60 bg-dark-900/30">
+        <div className="max-w-6xl mx-auto px-6 py-20">
+          <h2 className="text-2xl md:text-3xl font-bold text-center mb-4">Making It Real</h2>
+          <p className="text-dark-400 text-center max-w-2xl mx-auto mb-14">
+            We&apos;re actively exploring this pattern with customers across industries where
+            high-volume document processing is a bottleneck. Here&apos;s the value we&apos;re seeing.
+          </p>
+
+          <div className="space-y-4 max-w-4xl mx-auto">
+            {CUSTOMER_SCENARIOS.map((scenario) => (
+              <div key={scenario.industry} className="rounded-xl border border-dark-700/60 bg-dark-800/40 overflow-hidden">
+                <div className="flex flex-col md:flex-row">
+                  {/* Left: industry + use case */}
+                  <div className="md:w-1/3 px-6 py-5 md:border-r border-dark-700/40">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-2xl">{scenario.icon}</span>
+                      <div>
+                        <p className="font-semibold text-dark-100 text-sm">{scenario.industry}</p>
+                        <p className="text-xs text-dark-400">{scenario.useCase}</p>
+                      </div>
+                    </div>
+                    {/* Before → After badge */}
+                    <div className="flex items-center gap-2 mt-3">
+                      <span className="text-xs px-2.5 py-1 rounded-md bg-red-500/10 border border-red-500/20 text-red-400 font-medium">
+                        {scenario.before}
+                      </span>
+                      <svg className="w-4 h-4 text-dark-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                      <span className="text-xs px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-medium">
+                        {scenario.after}
+                      </span>
+                    </div>
+                  </div>
+                  {/* Right: detail */}
+                  <div className="md:w-2/3 px-6 py-5">
+                    <p className="text-sm text-dark-300 leading-relaxed">{scenario.detail}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Why customers care */}
+          <div className="mt-14 grid sm:grid-cols-2 gap-4 max-w-4xl mx-auto">
+            {WHY_CUSTOMERS_CARE.map((item) => (
+              <div key={item.title} className="flex items-start gap-3 rounded-lg border border-dark-700/40 bg-dark-800/20 px-5 py-4">
+                <span className="text-xl flex-shrink-0">{item.icon}</span>
+                <div>
+                  <p className="font-semibold text-dark-100 text-sm">{item.title}</p>
                   <p className="text-xs text-dark-400 mt-1 leading-relaxed">{item.desc}</p>
                 </div>
               </div>

@@ -61,7 +61,7 @@ export default function Page() {
                 </svg>
               </div>
               <div className="text-left">
-                <h1 className="text-lg font-bold text-dark-50 tracking-tight">IDP Workflow</h1>
+                <h1 className="text-lg font-bold text-dark-50 tracking-tight">DocProcessIQ</h1>
                 <p className="text-[11px] text-dark-400 tracking-wide">Intelligent Document Processing</p>
               </div>
             </button>
@@ -118,7 +118,7 @@ export default function Page() {
           /* Upload Page */
           <div className="max-w-2xl mx-auto pt-8">
             <div className="mb-8 text-center">
-              <h2 className="text-3xl font-bold text-dark-50 mb-3 tracking-tight">IDP Workflow</h2>
+              <h2 className="text-3xl font-bold text-dark-50 mb-3 tracking-tight">DocProcessIQ</h2>
               <p className="text-dark-400 max-w-lg mx-auto leading-relaxed">
                 Upload a document to run the 6-step AI pipeline: extract, classify, compare, review, and reason.
               </p>
