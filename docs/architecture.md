@@ -1,6 +1,6 @@
 # Architecture & Patterns
 
-Deep-dive reference for contributors and anyone extending the IDP Workflow pipeline.
+Deep-dive reference for contributors and anyone extending the DocProcessIQ pipeline.
 
 > **Looking for the quick-start?** See the [main README](../README.md).
 
@@ -8,6 +8,7 @@ Deep-dive reference for contributors and anyone extending the IDP Workflow pipel
 
 ## Table of Contents
 
+- [System Design](#system-design)
 - [Pipeline Flow](#pipeline-flow)
 - [Project Structure](#project-structure)
 - [Backend Patterns](#backend-patterns)
@@ -21,7 +22,165 @@ Deep-dive reference for contributors and anyone extending the IDP Workflow pipel
 
 ---
 
+## System Design
+
+```mermaid
+graph TD
+    classDef frontend fill:#0078D4,stroke:#005A9E,color:#fff
+    classDef backend fill:#1a1a2e,stroke:#0078D4,color:#fff
+    classDef ai fill:#107C10,stroke:#0B5B0B,color:#fff
+    classDef infra fill:#505050,stroke:#333,color:#fff
+    classDef signalr fill:#FF8C00,stroke:#CC7000,color:#fff
+    classDef domain fill:#5C2D91,stroke:#4B2376,color:#fff
+
+    subgraph USER_LAYER["👤 User Layer"]
+        USER(["User Browser"])
+    end
+
+    subgraph FRONTEND["🖥️ Frontend — Azure Static Web App"]
+        SWA["Next.js App<br/>(Static Export)"]
+        ZUSTAND["Zustand Stores<br/>workflow · events · reasoning · ui"]
+        REAFLOW["Reaflow Pipeline<br/>Visualization"]
+        HITL_UI["HITL Review Panel<br/>Side-by-side comparison"]
+        REASON_UI["Reasoning Panel<br/>Streaming chunks"]
+    end
+
+    subgraph BACKEND["⚡ Backend — Azure Functions (Flex Consumption)"]
+        API["HTTP API<br/>/api/idp/start<br/>/api/idp/hitl/review"]
+        ORCH["Durable Orchestrator<br/>_execute_step() helper"]
+
+        subgraph PIPELINE["📋 6-Step Pipeline (Activities)"]
+            direction LR
+            A1["① PDF Extraction"]
+            A2["② Classification"]
+            A3A["③a Azure CU<br/>Extraction"]
+            A3B["③b DSPy LLM<br/>Extraction"]
+            A4["④ Comparison"]
+            A5["⑤ HITL Gate<br/>wait_for_external_event"]
+            A6["⑥ AI Reasoning<br/>Agent + Tools"]
+        end
+
+        BROADCAST["_broadcast() helper<br/>notify_user activity"]
+    end
+
+    subgraph AI_SERVICES["🧠 Azure AI Services"]
+        DOCINTEL["Document Intelligence<br/>prebuilt-layout → Markdown"]
+        CU["Content Understanding<br/>Schema-driven extraction"]
+        AOAI["Azure OpenAI<br/>GPT-4.1 · o3-mini"]
+        AI_MODELS["Azure AI Models<br/>Qwen · DeepSeek · Llama · Phi"]
+        CLAUDE["Claude<br/>(via Anthropic API)"]
+    end
+
+    subgraph INFRA["☁️ Infrastructure"]
+        STORAGE["Blob Storage<br/>PDF documents"]
+        SIGNALR["SignalR Service<br/>User-targeted events"]
+        DTS["Durable Task Scheduler<br/>Orchestration state"]
+        APPINSIGHTS["Application Insights<br/>Logs + telemetry"]
+        NSP["Network Security Perimeter<br/>Storage lockdown"]
+    end
+
+    subgraph DOMAINS["📁 Domain Configs (Zero-Code)"]
+        D_SCHEMA["extraction_schema.json"]
+        D_CATS["classification_categories.json"]
+        D_RULES["validation_rules.json"]
+        D_CONFIG["config.json"]
+    end
+
+    %% User → Frontend
+    USER --> SWA
+    SWA --> ZUSTAND
+    ZUSTAND --> REAFLOW
+    ZUSTAND --> HITL_UI
+    ZUSTAND --> REASON_UI
+
+    %% Frontend → Backend
+    SWA -->|"POST /api/idp/start<br/>x-user-id header"| API
+    HITL_UI -->|"POST /api/idp/hitl/review"| API
+    API --> ORCH
+
+    %% Orchestrator → Pipeline
+    ORCH --> A1
+    A1 --> A2
+    A2 --> A3A
+    A2 --> A3B
+    A3A --> A4
+    A3B --> A4
+    A4 --> A5
+    A5 --> A6
+
+    %% Pipeline → AI Services
+    A1 -.-> DOCINTEL
+    A2 -.-> AOAI
+    A3A -.-> CU
+    A3B -.-> AOAI
+    A3B -.-> AI_MODELS
+    A3B -.-> CLAUDE
+    A6 -.-> AOAI
+
+    %% Pipeline → Domains
+    A2 -.-> D_CATS
+    A3A -.-> D_SCHEMA
+    A3B -.-> D_SCHEMA
+    A6 -.-> D_RULES
+
+    %% SignalR real-time events
+    ORCH --> BROADCAST
+    BROADCAST --> SIGNALR
+    SIGNALR -->|"stepStarted · stepCompleted<br/>hitlWaiting · reasoningChunk"| ZUSTAND
+
+    %% Infrastructure
+    API -.-> STORAGE
+    ORCH -.-> DTS
+    ORCH -.-> APPINSIGHTS
+    STORAGE -.-> NSP
+
+    %% Styling
+    class SWA,REAFLOW,HITL_UI,REASON_UI frontend
+    class API,ORCH,BROADCAST backend
+    class DOCINTEL,CU,AOAI,AI_MODELS,CLAUDE ai
+    class STORAGE,DTS,APPINSIGHTS,NSP infra
+    class SIGNALR signalr
+    class D_SCHEMA,D_CATS,D_RULES,D_CONFIG,ZUSTAND domain
+```
+
+### Key Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| **Durable Functions orchestrator** | Native checkpointing, external event gates, timer races, parallel fan-out/fan-in — no external queue or state DB needed |
+| **Dual-model extraction (Step 3)** | Cross-validation: agreement = high confidence, disagreement = focused human review |
+| **SignalR user-targeted messaging** | Frontend generates session `userId`, sent via `x-user-id` header at negotiate time — no pub/sub management |
+| **Domain configs as JSON** | New document types require zero code changes — extraction schema drives both Azure CU analyzer and DSPy Pydantic model generation |
+| **Static Web App export** | Next.js `output: 'export'` produces static HTML/JS — deployed to Azure SWA with zero server-side runtime |
+
+---
+
 ## Pipeline Flow
+
+```mermaid
+flowchart LR
+    classDef extract fill:#107C10,stroke:#0B5B0B,color:#fff
+    classDef compare fill:#0078D4,stroke:#005A9E,color:#fff
+    classDef hitl fill:#FF8C00,stroke:#CC7000,color:#fff
+    classDef reason fill:#5C2D91,stroke:#4B2376,color:#fff
+    classDef result fill:#333,stroke:#1a1a1a,color:#fff
+    classDef start fill:#0078D4,stroke:#005A9E,color:#fff
+
+    PDF(["📄 Upload PDF"]):::start
+    S1["① PDF Extraction<br/>Doc Intelligence → Markdown"]:::extract
+    S2["② Classification<br/>DSPy ChainOfThought"]:::extract
+    S3A["③a Azure CU<br/>Structured Extraction"]:::extract
+    S3B["③b DSPy LLM<br/>Multi-provider"]:::extract
+    S4["④ Comparison<br/>Field-by-field Diff"]:::compare
+    S5["⑤ Human Review<br/>HITL Gate"]:::hitl
+    S6["⑥ AI Reasoning<br/>Validation & Scoring"]:::reason
+    OUT(["✅ Structured Result"]):::result
+
+    PDF --> S1 --> S2
+    S2 --> S3A & S3B
+    S3A & S3B --> S4
+    S4 --> S5 --> S6 --> OUT
+```
 
 ```
 HTTP POST /api/idp/start
