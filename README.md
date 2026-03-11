@@ -10,6 +10,39 @@ End-to-end document processing pipeline on Azure — upload a PDF, get structure
 
 Built with **Azure Durable Functions**, **Azure Document Intelligence**, **DSPy**, and a **Next.js** real-time dashboard.
 
+## Architecture
+
+```mermaid
+graph TD
+    classDef blue fill:#0078D4,stroke:#005A9E,color:#fff
+    classDef green fill:#107C10,stroke:#0B5B0B,color:#fff
+    classDef orange fill:#FF8C00,stroke:#CC7000,color:#fff
+    classDef purple fill:#5C2D91,stroke:#4B2376,color:#fff
+    classDef gray fill:#505050,stroke:#333,color:#fff
+
+    USER(["👤 User"])
+    SWA["Static Web App"]:::blue
+    FUNC["Azure Functions"]:::blue
+    STORAGE["Blob Storage"]:::blue
+    DTS["Durable Task\nScheduler"]:::gray
+    APPI["App Insights"]:::purple
+    SIGNALR["SignalR
+Streaming Updates"]:::orange
+    DOCINTEL["Document\nIntelligence"]:::green
+    CU["Content\nUnderstanding"]:::green
+    OPENAI["Azure OpenAI"]:::green
+
+    USER --> SWA --> FUNC --> STORAGE
+    FUNC --> DTS
+    FUNC -.-> APPI
+    FUNC --> SIGNALR -.-> USER
+    FUNC --> DOCINTEL
+    FUNC --> CU
+    FUNC --> OPENAI
+```
+
+> **Pipeline:** Upload PDF → ① Extract → ② Classify → ③ Extract Data → ④ Compare → ⑤ Human Review → ⑥ AI Reasoning → Structured Result
+
 ## Features
 
 - **6-step pipeline** — extraction → classification → dual AI extraction → comparison → human review → AI reasoning

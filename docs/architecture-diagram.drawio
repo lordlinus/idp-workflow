@@ -1,0 +1,133 @@
+<mxfile host="app.diagrams.net" agent="copilot" version="26.0.0">
+  <diagram name="Azure Architecture" id="idp-arch">
+    <mxGraphModel dx="1400" dy="860" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="720" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- User -->
+        <mxCell id="user" value="" style="shape=image;aspect=fixed;image=img/lib/azure2/general/Browser.svg;" vertex="1" parent="1">
+          <mxGeometry x="540" y="30" width="50" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="user_label" value="User" style="text;html=1;align=center;fontSize=13;fontStyle=1;fontColor=#333;" vertex="1" parent="1">
+          <mxGeometry x="525" y="72" width="80" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- Row 1: SWA → Functions → Storage -->
+        <mxCell id="swa_i" value="" style="shape=image;aspect=fixed;image=img/lib/azure2/app_services/Static_Apps.svg;" vertex="1" parent="1">
+          <mxGeometry x="115" y="115" width="40" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="swa" value="Static Web App&lt;br&gt;&lt;font style='font-size:10px;font-weight:normal'&gt;Next.js Frontend&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0078D4;strokeColor=#005A9E;fontColor=#fff;fontSize=12;fontStyle=1;arcSize=12;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="50" y="160" width="170" height="50" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="func_i" value="" style="shape=image;aspect=fixed;image=img/lib/azure2/compute/Function_Apps.svg;" vertex="1" parent="1">
+          <mxGeometry x="515" y="105" width="48" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="func" value="Azure Functions&lt;br&gt;&lt;font style='font-size:10px;font-weight:normal'&gt;Durable Orchestration&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0078D4;strokeColor=#005A9E;fontColor=#fff;fontSize=13;fontStyle=1;arcSize=10;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="440" y="155" width="200" height="55" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="stor_i" value="" style="shape=image;aspect=fixed;image=img/lib/azure2/storage/Storage_Accounts.svg;" vertex="1" parent="1">
+          <mxGeometry x="945" y="118" width="40" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="stor" value="Blob Storage&lt;br&gt;&lt;font style='font-size:10px;font-weight:normal'&gt;Document store&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0078D4;strokeColor=#005A9E;fontColor=#fff;fontSize=12;fontStyle=1;arcSize=10;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="885" y="160" width="160" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Row 2: DTS + App Insights -->
+        <mxCell id="dts_i" value="" style="shape=image;aspect=fixed;image=img/lib/azure2/general/Workbooks.svg;" vertex="1" parent="1">
+          <mxGeometry x="235" y="260" width="35" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="dts" value="Durable Task Scheduler" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#50A0E0;strokeColor=#3580C0;fontColor=#fff;fontSize=11;fontStyle=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="150" y="300" width="200" height="40" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="appi_i" value="" style="shape=image;aspect=fixed;image=img/lib/azure2/devops/Application_Insights.svg;" vertex="1" parent="1">
+          <mxGeometry x="760" y="260" width="35" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="appi" value="Application Insights" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#5C2D91;strokeColor=#4B2376;fontColor=#fff;fontSize=11;fontStyle=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="680" y="300" width="180" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Row 3: AI &amp; Messaging -->
+        <mxCell id="sig_i" value="" style="shape=image;aspect=fixed;image=img/lib/azure2/web/SignalR.svg;" vertex="1" parent="1">
+          <mxGeometry x="95" y="390" width="40" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="sig" value="SignalR&lt;br&gt;&lt;font style='font-size:10px;font-weight:normal'&gt;Streaming step updates&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF8C00;strokeColor=#CC7000;fontColor=#fff;fontSize=12;fontStyle=1;arcSize=10;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="45" y="435" width="150" height="45" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="di_i" value="" style="shape=image;aspect=fixed;image=img/lib/azure2/ai_machine_learning/Form_Recognizers.svg;" vertex="1" parent="1">
+          <mxGeometry x="340" y="390" width="40" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="di" value="Document Intelligence&lt;br&gt;&lt;font style='font-size:10px;font-weight:normal'&gt;PDF → Markdown&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#107C10;strokeColor=#0B5B0B;fontColor=#fff;fontSize=12;fontStyle=1;arcSize=10;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="270" y="435" width="190" height="45" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="cu_i" value="" style="shape=image;aspect=fixed;image=img/lib/azure2/ai_machine_learning/Cognitive_Services.svg;" vertex="1" parent="1">
+          <mxGeometry x="620" y="390" width="40" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="cu" value="Content Understanding&lt;br&gt;&lt;font style='font-size:10px;font-weight:normal'&gt;Structured extraction&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#107C10;strokeColor=#0B5B0B;fontColor=#fff;fontSize=12;fontStyle=1;arcSize=10;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="545" y="435" width="190" height="45" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="oai_i" value="" style="shape=image;aspect=fixed;image=img/lib/azure2/ai_machine_learning/Azure_OpenAI.svg;" vertex="1" parent="1">
+          <mxGeometry x="910" y="390" width="40" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="oai" value="Azure OpenAI&lt;br&gt;&lt;font style='font-size:10px;font-weight:normal'&gt;GPT-4.1 · o3-mini&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#107C10;strokeColor=#0B5B0B;fontColor=#fff;fontSize=12;fontStyle=1;arcSize=10;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="840" y="435" width="180" height="45" as="geometry"/>
+        </mxCell>
+
+        <!-- Pipeline -->
+        <mxCell id="pipe_bg" value="" style="rounded=1;fillColor=#FAFAFA;strokeColor=#DDD;strokeWidth=1;dashed=1;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="45" y="510" width="1010" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="p1" value="① Extract" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#107C10;strokeColor=#0B5B0B;fontColor=#fff;fontSize=10;fontStyle=1;arcSize=16;" vertex="1" parent="1">
+          <mxGeometry x="60" y="523" width="80" height="32" as="geometry"/>
+        </mxCell>
+        <mxCell id="p2" value="② Classify" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#107C10;strokeColor=#0B5B0B;fontColor=#fff;fontSize=10;fontStyle=1;arcSize=16;" vertex="1" parent="1">
+          <mxGeometry x="175" y="523" width="80" height="32" as="geometry"/>
+        </mxCell>
+        <mxCell id="p3" value="③ Extract Data" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#107C10;strokeColor=#0B5B0B;fontColor=#fff;fontSize=10;fontStyle=1;arcSize=16;" vertex="1" parent="1">
+          <mxGeometry x="290" y="523" width="100" height="32" as="geometry"/>
+        </mxCell>
+        <mxCell id="p4" value="④ Compare" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0078D4;strokeColor=#005A9E;fontColor=#fff;fontSize=10;fontStyle=1;arcSize=16;" vertex="1" parent="1">
+          <mxGeometry x="425" y="523" width="85" height="32" as="geometry"/>
+        </mxCell>
+        <mxCell id="p5" value="⑤ Human Review" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF8C00;strokeColor=#CC7000;fontColor=#fff;fontSize=10;fontStyle=1;arcSize=16;" vertex="1" parent="1">
+          <mxGeometry x="545" y="523" width="115" height="32" as="geometry"/>
+        </mxCell>
+        <mxCell id="p6" value="⑥ AI Reasoning" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#107C10;strokeColor=#0B5B0B;fontColor=#fff;fontSize=10;fontStyle=1;arcSize=16;" vertex="1" parent="1">
+          <mxGeometry x="695" y="523" width="105" height="32" as="geometry"/>
+        </mxCell>
+        <mxCell id="pr" value="✓ Result" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#333;strokeColor=#1a1a1a;fontColor=#fff;fontSize=10;fontStyle=1;arcSize=16;" vertex="1" parent="1">
+          <mxGeometry x="835" y="523" width="70" height="32" as="geometry"/>
+        </mxCell>
+        <mxCell id="a1" style="rounded=0;strokeColor=#aaa;strokeWidth=1.5;endArrow=blockThin;endFill=1;" edge="1" source="p1" target="p2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a2" style="rounded=0;strokeColor=#aaa;strokeWidth=1.5;endArrow=blockThin;endFill=1;" edge="1" source="p2" target="p3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a3" style="rounded=0;strokeColor=#aaa;strokeWidth=1.5;endArrow=blockThin;endFill=1;" edge="1" source="p3" target="p4" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a4" style="rounded=0;strokeColor=#aaa;strokeWidth=1.5;endArrow=blockThin;endFill=1;" edge="1" source="p4" target="p5" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a5" style="rounded=0;strokeColor=#aaa;strokeWidth=1.5;endArrow=blockThin;endFill=1;" edge="1" source="p5" target="p6" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a6" style="rounded=0;strokeColor=#aaa;strokeWidth=1.5;endArrow=blockThin;endFill=1;" edge="1" source="p6" target="pr" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#333;endArrow=blockThin;endFill=1;" edge="1" source="user" target="swa" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#0078D4;endArrow=blockThin;endFill=1;" edge="1" source="swa" target="func" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#333;endArrow=blockThin;endFill=1;" edge="1" source="func" target="stor" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=1.5;strokeColor=#3580C0;dashed=1;endArrow=blockThin;endFill=1;" edge="1" source="func" target="dts" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e8" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=1;strokeColor=#5C2D91;dashed=1;endArrow=blockThin;endFill=1;" edge="1" source="func" target="appi" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e10" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#FF8C00;endArrow=blockThin;endFill=1;" edge="1" source="func" target="sig" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e11" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#107C10;endArrow=blockThin;endFill=1;" edge="1" source="func" target="di" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#107C10;endArrow=blockThin;endFill=1;" edge="1" source="func" target="cu" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e13" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;strokeColor=#107C10;endArrow=blockThin;endFill=1;" edge="1" source="func" target="oai" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e14" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=1.5;strokeColor=#FF8C00;dashed=1;dashPattern=8 4;endArrow=blockThin;endFill=1;" edge="1" source="sig" target="user" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="25" y="458"/><mxPoint x="25" y="50"/></Array>
+          </mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
