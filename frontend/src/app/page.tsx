@@ -10,13 +10,14 @@ import { ConnectionIndicator } from '@/components/ConnectionIndicator';
 import { FileUploadArea } from '@/components/FileUploadArea';
 import { HITLReviewPanel } from '@/components/HITLReviewPanel';
 import { DetailPanel } from '@/components/DetailPanel';
+import { LandingPage } from '@/components/LandingPage';
 import clsx from 'clsx';
 
 import { TOTAL_STEPS } from '@/lib/stepConfig';
 import { WorkflowDiagram } from '@/components/WorkflowDiagram';
 
 export default function Page() {
-  const [currentPage, setCurrentPage] = React.useState<'upload' | 'execution'>('upload');
+  const [currentPage, setCurrentPage] = React.useState<'landing' | 'upload' | 'execution'>('landing');
   const [isTransitioning, setIsTransitioning] = React.useState(false);
   const instanceId = useWorkflowStore((state) => state.instanceId);
   const toast = useUIStore((state) => state.toast);
@@ -41,31 +42,39 @@ export default function Page() {
     clearEvents();
     clearChunks();
     setShowHITLModal(false);
-    setCurrentPage('upload');
+    setCurrentPage('landing');
   };
 
   return (
     <div className="h-screen flex flex-col bg-dark-950 overflow-hidden">
-      {/* Header */}
+      {/* Header — hidden on landing page (it has its own nav) */}
+      {currentPage !== 'landing' && (
       <header className="flex-shrink-0 relative">
         {/* Gradient accent line at top */}
         <div className="h-[2px] bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500" />
         <div className="border-b border-dark-700/60 bg-dark-900/80 backdrop-blur-xl">
           <div className="max-w-full mx-auto px-6 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <button onClick={() => setCurrentPage('landing')} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
                 <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
-              <div>
-                <h1 className="text-lg font-bold text-dark-50 tracking-tight">Document Intelligence</h1>
-                <p className="text-[11px] text-dark-400 tracking-wide">AI-Powered Extraction Workbench</p>
+              <div className="text-left">
+                <h1 className="text-lg font-bold text-dark-50 tracking-tight">IDP Workflow</h1>
+                <p className="text-[11px] text-dark-400 tracking-wide">Intelligent Document Processing</p>
               </div>
-            </div>
+            </button>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               {currentPage === 'execution' && <ConnectionIndicator />}
+
+              <button
+                onClick={() => setCurrentPage('landing')}
+                className="text-xs text-dark-400 hover:text-dark-200 transition-colors"
+              >
+                About
+              </button>
 
               {currentPage === 'execution' && (
                 <button
@@ -82,10 +91,13 @@ export default function Page() {
           </div>
         </div>
       </header>
+      )}
 
       {/* Main Content */}
-      <main className="flex-1 px-4 py-3 overflow-auto">
-        {isTransitioning ? (
+      <main className={clsx('flex-1 overflow-auto', currentPage !== 'landing' && 'px-4 py-3')}>
+        {currentPage === 'landing' ? (
+          <LandingPage onGetStarted={() => setCurrentPage('upload')} />
+        ) : isTransitioning ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center animate-fade-in">
               <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-xl shadow-emerald-500/20">
@@ -106,7 +118,7 @@ export default function Page() {
           /* Upload Page */
           <div className="max-w-2xl mx-auto pt-8">
             <div className="mb-8 text-center">
-              <h2 className="text-3xl font-bold text-dark-50 mb-3 tracking-tight">Intelligent Document Processing</h2>
+              <h2 className="text-3xl font-bold text-dark-50 mb-3 tracking-tight">IDP Workflow</h2>
               <p className="text-dark-400 max-w-lg mx-auto leading-relaxed">
                 Upload a document to run the 6-step AI pipeline: extract, classify, compare, review, and reason.
               </p>

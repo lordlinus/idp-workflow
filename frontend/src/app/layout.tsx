@@ -3,8 +3,8 @@ import { Providers } from './providers';
 import '@/styles/globals.css';
 
 export const metadata: Metadata = {
-  title: 'IDP Workflow - Document Intelligence',
-  description: 'Intelligent Document Processing with AI-powered extraction and human-in-the-loop review',
+  title: 'IDP Workflow - Intelligent Document Processing',
+  description: 'AI-orchestrated intelligent document processing. A 6-step pipeline with dual-model extraction, human-in-the-loop review, and real-time AI reasoning.',
   icons: {
     icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">📄</text></svg>',
   },
