@@ -4,7 +4,7 @@ Professional, real-time UI for Intelligent Document Processing workflow with Azu
 
 ## Features
 
-- 🎨 **Beautiful Dark Theme UI** - Professional and polished interface
+- 🎨 **Dark Theme UI** - Professional and polished interface
 - 🔄 **Real-time Workflow Visualization** - Reaflow-based 6-step pipeline diagram
 - 🔌 **SignalR Integration** - Live updates for step execution and streaming reasoning
 - 👤 **HITL Review Panel** - Elegant field selection and approval interface
@@ -51,7 +51,7 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:7071/api
 npm run dev
 ```
 
-Open http://localhost:3000 in your browser.
+Open <http://localhost:3000> in your browser.
 
 ### Build
 
@@ -72,6 +72,7 @@ npm start
 ### API Integration
 
 All backend calls via `src/lib/apiClient.ts`:
+
 - Upload PDFs to Azure Blob Storage
 - Start workflows
 - Submit HITL reviews
@@ -81,6 +82,7 @@ All backend calls via `src/lib/apiClient.ts`:
 ### SignalR Real-time Events
 
 Auto-connected to Azure SignalR hub with support for:
+
 - `stepStarted` / `stepCompleted` / `stepFailed`
 - `hitlWaiting` / `hitlApproved` / `hitlRejected`
 - `reasoningChunk` (streamed in real-time)
